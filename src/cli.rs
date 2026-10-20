@@ -374,7 +374,7 @@ impl AgentWithinArgs {
 #[derive(Parser, Debug)]
 #[command(name = crate::APP_NAME)]
 #[command(version)]
-#[command(about = "View Claude conversation history")]
+#[command(about = "View AI coding agent conversation history")]
 #[command(args_conflicts_with_subcommands = true)]
 #[command(group(
     ArgGroup::new("one_shot_action")

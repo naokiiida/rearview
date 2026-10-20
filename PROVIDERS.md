@@ -100,9 +100,9 @@ while the table is out of date.
 
 | Capability                 | Capable when                                                                                        | Not Capable                                |
 |----------------------------|-----------------------------------------------------------------------------------------------------|--------------------------------------------|
-| `resume`                   | the agent's command line resumes a session                                                          | Antigravity                                |
+| `resume`                   | the agent's command line resumes a session                                                          | —                                          |
 | `fork`                     | the agent's command line starts a session branching from another                                    | Kimi, Antigravity                          |
-| `rename`                   | a session can be given a user-chosen title                                                          | Antigravity                                |
+| `rename`                   | a session can be given a user-chosen title                                                          | —                                          |
 | `delete`                   | a session and what the agent stores for it can be deleted                                           | —                                          |
 | `subagents`                | discovery names sub-agent transcripts on their session's stub, and a delete removes and counts them | Pi, Antigravity                            |
 | `subagent_by_id`           | a sub-agent transcript's ID resolves through `resolve_session_id` to a stub of its own              | Claude, Kimi, Pi, OMP, Antigravity         |
