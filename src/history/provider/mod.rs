@@ -637,7 +637,7 @@ mod tests {
             (Source::Kimi, "kimi", *b"KIHIST01", 17),
             (Source::Grok, "grok", *b"GKHIST01", 9),
             (Source::OpenCode, "opencode", *b"OCHIST01", 15),
-            (Source::Agy, "agy", *b"AGYHST01", 1),
+            (Source::Agy, "agy", *b"AGYHST02", 1),
         ];
         assert_eq!(
             pinned.len(),

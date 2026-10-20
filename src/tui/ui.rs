@@ -655,7 +655,11 @@ fn render_view_header(frame: &mut Frame, app: &App, state: &ViewState, area: Rec
         summary,
         fits_single,
     ) = if let Some(conv) = conv {
-        let project = conv.project_name.as_deref().unwrap_or("Unknown");
+        let project = conv
+            .project_name
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Unknown");
         let custom_title = conv.custom_title.clone();
         let model = conv.model.as_ref().map(|m| format_model_name(m));
         let msg_count = if conv.message_count == 1 {
@@ -1956,18 +1960,24 @@ fn build_list_row(
     let min_padding = 3;
     let left_budget = width.saturating_sub(indicator_len + right_len + min_padding);
 
-    let raw_project_part = conv
+    let raw_project_part = match conv
         .project_name
-        .as_ref()
-        .map(|name| match frame_inputs.source_label_column {
+        .as_deref()
+        .filter(|name| !name.is_empty())
+    {
+        Some(name) => match frame_inputs.source_label_column {
             Some(column) => format!(
                 "{:<width$} · {name}",
                 conv.source.list_label(),
                 width = column
             ),
             None => name.to_string(),
-        })
-        .unwrap_or_default();
+        },
+        None => match frame_inputs.source_label_column {
+            Some(column) => format!("{:<width$}", conv.source.list_label(), width = column),
+            None => String::new(),
+        },
+    };
     let has_title_or_summary = conv.custom_title.as_ref().is_some_and(|s| !s.is_empty())
         || conv.summary.as_ref().is_some_and(|s| !s.is_empty());
     let raw_project_width = UnicodeWidthStr::width(raw_project_part.as_str());
@@ -1985,7 +1995,13 @@ fn build_list_row(
         .custom_title
         .as_ref()
         .filter(|s| !s.is_empty() && title_budget > 4)
-        .map(|s| format!(" · {}", simple_truncate(s, title_budget)));
+        .map(|s| {
+            if project.is_empty() {
+                simple_truncate(s, title_budget)
+            } else {
+                format!(" · {}", simple_truncate(s, title_budget))
+            }
+        });
     let custom_title_len = custom_title_with_separator
         .as_ref()
         .map(|s| UnicodeWidthStr::width(s.as_str()))
@@ -1999,10 +2015,15 @@ fn build_list_row(
         .as_ref()
         .filter(|s| !s.is_empty() && available_for_summary > 5)
         .map(|s| {
-            if UnicodeWidthStr::width(s.as_str()) > available_for_summary {
-                format!(" · {}", simple_truncate(s, available_for_summary))
+            let truncated = if UnicodeWidthStr::width(s.as_str()) > available_for_summary {
+                simple_truncate(s, available_for_summary)
             } else {
-                format!(" · {}", s)
+                s.to_string()
+            };
+            if project.is_empty() && custom_title_with_separator.is_none() {
+                truncated
+            } else {
+                format!(" · {}", truncated)
             }
         });
 
@@ -3351,6 +3372,30 @@ mod tests {
 
             assert_eq!(row.project, expected);
         }
+    }
+
+    #[test]
+    fn row_without_project_name_avoids_double_dot_separator() {
+        let query = HighlightQuery::parse("");
+        let frame_inputs = ListFrameInputs {
+            width: 120,
+            query: &query,
+            search_mode: ListSearchMode::Lexical,
+            source_label_column: Some(crate::history::provider::list_label_column_width()),
+            now: a_month_later(),
+        };
+
+        let mut conversation = test_conversation();
+        conversation.source = crate::history::Source::Claude;
+        conversation.project_name = None;
+        conversation.custom_title = Some("Fix bug in parser".to_string());
+
+        let row = build_list_row(&conversation, &frame_inputs, None, None);
+        assert_eq!(row.project, "CC  ");
+        assert_eq!(
+            row.custom_title_with_separator.as_deref(),
+            Some(" · Fix bug in parser")
+        );
     }
 
     #[test]

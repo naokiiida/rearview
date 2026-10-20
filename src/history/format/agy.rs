@@ -168,6 +168,9 @@ impl SessionFormat for AgyTranscriptFormat {
 
                     if let Some(tool_calls) = record.tool_calls {
                         for (call_idx, call) in tool_calls.into_iter().enumerate() {
+                            if detected_cwd.is_none() {
+                                detected_cwd = extract_cwd_from_tool_call(&call.name, &call.args);
+                            }
                             let tool_id = format!("call_{}_{}", record.step_index, call_idx);
                             pending_tool_calls.push_back(tool_id.clone());
                             let (canonical_tool, canonical_input) = map_tool(&call.name, call.args);
@@ -318,6 +321,23 @@ fn extract_cwd(raw: &str) -> Option<PathBuf> {
         let path_str = after[..end].trim();
         if !path_str.is_empty() {
             return Some(PathBuf::from(path_str));
+        }
+    }
+    None
+}
+
+/// Fallback working directory extraction from tool calls (e.g. `run_command` Cwd).
+fn extract_cwd_from_tool_call(name: &str, args: &Value) -> Option<PathBuf> {
+    if name == "run_command" {
+        if let Some(cwd_val) = args.get("Cwd").or_else(|| args.get("cwd")) {
+            if let Some(s) = cwd_val.as_str() {
+                let trimmed = s.trim().trim_matches('"');
+                if (trimmed.starts_with('/') || (trimmed.len() > 2 && trimmed.as_bytes()[1] == b':'))
+                    && !trimmed.is_empty()
+                {
+                    return Some(PathBuf::from(trimmed));
+                }
+            }
         }
     }
     None

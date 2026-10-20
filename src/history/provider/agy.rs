@@ -100,6 +100,10 @@ impl SessionProvider for AgyProvider {
         Capability::Capable(self)
     }
 
+    fn session_id_in_locator(&self, locator: &Path) -> Option<String> {
+        crate::history::format::agy::session_id_of(locator)
+    }
+
     fn find_sessions_by_id(&self, session_id: &str) -> Result<Vec<PathBuf>> {
         resolved_session_paths(self, session_id)
     }
@@ -265,7 +269,7 @@ impl SessionStorage for AgyStorage {
     fn cache(&self) -> SessionCache {
         SessionCache {
             directory: "agy",
-            magic: *b"AGYHST01",
+            magic: *b"AGYHST02",
             schema_version: 1,
         }
     }
@@ -328,14 +332,37 @@ impl SessionStorage for AgyStorage {
     ) -> Result<Option<Conversation>> {
         let mut conversation =
             parser::process_session_file(stub, &AGY_TRANSCRIPT, debug_level, on_transcript_read)?;
-        // The title is not in the transcript, so a parse reads it itself; cache
-        // hits get it from `external_titles`.
-        if let Some(conversation) = conversation.as_mut()
-            && let Some(title) = self.external_titles(root).get(&conversation.session_id)
-        {
-            apply_external_title(conversation, title);
+        let Some(conversation) = conversation.as_mut() else {
+            return Ok(None);
+        };
+        // The title and workspace are in conversation_summaries.db beside brain/.
+        if let Some(meta) = session_summary_meta(&root.path, &conversation.session_id) {
+            if let Some(title) = meta.title {
+                apply_external_title(conversation, &SessionTitle::Custom(title));
+            }
+            if let Some(workspace) = meta.workspace {
+                conversation.cwd = Some(workspace.clone());
+                conversation.project_path = Some(workspace.clone());
+                conversation.project_name =
+                    Some(crate::history::format_short_name_from_path(&workspace));
+            }
         }
-        Ok(conversation)
+        if conversation
+            .project_path
+            .as_ref()
+            .map_or(true, |p| p.as_os_str().is_empty())
+        {
+            if let Some(cwd) = conversation.cwd.clone().filter(|p| !p.as_os_str().is_empty()) {
+                conversation.project_path = Some(cwd.clone());
+                conversation.project_name =
+                    Some(crate::history::format_short_name_from_path(&cwd));
+            } else {
+                conversation.cwd = None;
+                conversation.project_path = None;
+                conversation.project_name = None;
+            }
+        }
+        Ok(Some(conversation.clone()))
     }
 
     /// Titles live in `conversation_summaries.title`, agy's own generated
@@ -366,6 +393,105 @@ impl SessionStorage for AgyStorage {
     }
 }
 
+pub(crate) struct AgySummaryMeta {
+    pub title: Option<String>,
+    pub workspace: Option<PathBuf>,
+}
+
+pub(crate) fn parse_workspace_uri(raw: &str) -> Option<PathBuf> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "[]" {
+        return None;
+    }
+    let candidates: Vec<String> = if trimmed.starts_with('[') {
+        serde_json::from_str(trimmed).unwrap_or_default()
+    } else {
+        vec![trimmed.to_string()]
+    };
+
+    for uri in candidates {
+        let uri = uri.trim();
+        if uri.is_empty() {
+            continue;
+        }
+        let without_scheme = uri.strip_prefix("file://").unwrap_or(uri);
+        let decoded = percent_decode(without_scheme);
+        let path_str = if cfg!(windows)
+            && decoded.starts_with('/')
+            && decoded.len() > 3
+            && decoded.as_bytes()[1].is_ascii_alphabetic()
+            && decoded.as_bytes()[2] == b':'
+        {
+            &decoded[1..]
+        } else {
+            &decoded
+        };
+        if !path_str.is_empty() {
+            return Some(PathBuf::from(path_str));
+        }
+    }
+    None
+}
+
+pub(crate) fn percent_decode(s: &str) -> String {
+    let mut bytes = Vec::with_capacity(s.len());
+    let mut chars = s.as_bytes().iter().copied();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            if let (Some(h1), Some(h2)) = (chars.next(), chars.next()) {
+                if let Ok(byte) =
+                    u8::from_str_radix(std::str::from_utf8(&[h1, h2]).unwrap_or(""), 16)
+                {
+                    bytes.push(byte);
+                    continue;
+                }
+                bytes.push(b);
+                bytes.push(h1);
+                bytes.push(h2);
+                continue;
+            }
+        }
+        bytes.push(b);
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+fn session_summary_meta(brain: &Path, session_id: &str) -> Option<AgySummaryMeta> {
+    let connection = rusqlite::Connection::open_with_flags(
+        summaries_database(brain),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .ok()?;
+    if let Ok(mut statement) = connection.prepare(
+        "SELECT title, workspace_uris FROM conversation_summaries WHERE conversation_id = ?1",
+    ) {
+        if let Ok((raw_title, raw_workspaces)) = statement.query_row([session_id], |row| {
+            Ok((
+                row.get::<_, Option<String>>(0)?,
+                row.get::<_, Option<String>>(1)?,
+            ))
+        }) {
+            let title = raw_title.filter(|t| !t.trim().is_empty());
+            let workspace = raw_workspaces.and_then(|raw| parse_workspace_uri(&raw));
+            return Some(AgySummaryMeta { title, workspace });
+        }
+    }
+    if let Ok(mut statement) = connection
+        .prepare("SELECT title FROM conversation_summaries WHERE conversation_id = ?1")
+    {
+        if let Ok(raw_title) =
+            statement.query_row([session_id], |row| row.get::<_, Option<String>>(0))
+        {
+            let title = raw_title.filter(|t| !t.trim().is_empty());
+            return Some(AgySummaryMeta {
+                title,
+                workspace: None,
+            });
+        }
+    }
+    None
+}
+
 fn session_dir_of(path: &Path) -> Option<PathBuf> {
     let mut current = path.parent()?;
     if current.file_name() == Some(std::ffi::OsStr::new("logs")) {
@@ -394,20 +520,28 @@ pub(crate) mod tests {
     /// The row agy keeps for a conversation in `conversation_summaries.db`,
     /// beside `brain/`.
     pub(crate) fn write_summary_row(brain: &Path, session: &str) {
+        write_summary_row_with_workspace(brain, session, "");
+    }
+
+    pub(crate) fn write_summary_row_with_workspace(
+        brain: &Path,
+        session: &str,
+        workspace_uris: &str,
+    ) {
         let connection = rusqlite::Connection::open(summaries_database(brain)).unwrap();
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS conversation_summaries \
-                 (conversation_id text, title text NOT NULL DEFAULT '')",
+                 (conversation_id text PRIMARY KEY, title text NOT NULL DEFAULT '', workspace_uris text NOT NULL DEFAULT '')",
                 [],
             )
             .unwrap();
         connection
             .execute(
-                "INSERT INTO conversation_summaries (conversation_id) \
-                 SELECT ?1 WHERE NOT EXISTS \
-                 (SELECT 1 FROM conversation_summaries WHERE conversation_id = ?1)",
-                [session],
+                "INSERT INTO conversation_summaries (conversation_id, workspace_uris) \
+                 VALUES (?1, ?2) \
+                 ON CONFLICT(conversation_id) DO UPDATE SET workspace_uris = excluded.workspace_uris",
+                rusqlite::params![session, workspace_uris],
             )
             .unwrap();
     }
@@ -613,5 +747,66 @@ pub(crate) mod tests {
             configured_args: &[],
         };
         assert!(AgyLauncher.resume_command(&launch).is_err());
+    }
+
+    #[test]
+    fn parse_workspace_uri_extracts_paths_and_handles_percent_encoding() {
+        assert_eq!(
+            parse_workspace_uri(r#"["file:///Users/naokiiida/Documents/4_clone/rearview"]"#),
+            Some(PathBuf::from("/Users/naokiiida/Documents/4_clone/rearview"))
+        );
+        assert_eq!(
+            parse_workspace_uri(r#"["file:///Users/naokiiida/Documents/Vault/Projects/Daily%20Digest"]"#),
+            Some(PathBuf::from("/Users/naokiiida/Documents/Vault/Projects/Daily Digest"))
+        );
+        assert_eq!(
+            parse_workspace_uri("file:///tmp/simple-path"),
+            Some(PathBuf::from("/tmp/simple-path"))
+        );
+        assert_eq!(parse_workspace_uri("[]"), None);
+        assert_eq!(parse_workspace_uri(""), None);
+    }
+
+    #[test]
+    fn percent_decode_decodes_special_characters_and_multibyte() {
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("/path%2Fsub%20dir"), "/path/sub dir");
+        assert_eq!(percent_decode("%E9%A1%B9%E7%9B%AE"), "项目");
+    }
+
+    #[test]
+    fn parse_session_reads_workspace_from_summaries_database() {
+        let home = tempfile::tempdir().unwrap();
+        let transcript = AgyFixture.write_session(home.path(), SESSION);
+        write_summary_row_with_workspace(
+            &root_of(home.path()),
+            SESSION,
+            r#"["file:///workspace/my-custom-project"]"#,
+        );
+
+        let root = AgyFixture.root_under(home.path());
+        let stub = SessionStub {
+            locator: transcript,
+            subagents: Vec::new(),
+            cache_key: String::new(),
+            fingerprint: crate::history::provider::Fingerprint {
+                size: 0,
+                modified: None,
+            },
+        };
+
+        let conversation = AgyStorage
+            .parse_session(&stub, &root, None, &|| {})
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            conversation.project_path,
+            Some(PathBuf::from("/workspace/my-custom-project"))
+        );
+        assert_eq!(
+            conversation.project_name,
+            Some("my-custom-project".to_string())
+        );
     }
 }
