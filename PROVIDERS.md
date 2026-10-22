@@ -98,17 +98,17 @@ while the table is out of date.
 
 <!-- generated capability table: begin -->
 
-| Capability                 | Capable when                                                                                        | Not Capable                   |
-|----------------------------|-----------------------------------------------------------------------------------------------------|-------------------------------|
-| `resume`                   | the agent's command line resumes a session                                                          | —                             |
-| `fork`                     | the agent's command line starts a session branching from another                                    | Kimi                          |
-| `rename`                   | a session can be given a user-chosen title                                                          | —                             |
-| `delete`                   | a session and what the agent stores for it can be deleted                                           | —                             |
-| `subagents`                | discovery names sub-agent transcripts on their session's stub, and a delete removes and counts them | Pi                            |
-| `subagent_by_id`           | a sub-agent transcript's ID resolves through `resolve_session_id` to a stub of its own              | Claude, Kimi, Pi, OMP         |
-| `session_id_lookup`        | a typed session ID resolves through `is_session_id_shape` and `resolve_session_id`                  | Pi, OMP                       |
-| `workspace_sessions_dir`   | the agent stores the sessions recorded in each working directory in a directory of their own        | Codex, OpenCode               |
-| `current_session_variable` | each shell the agent runs gets an environment variable holding its session's ID                     | OpenCode, Kimi, Grok, Pi, OMP |
+| Capability                 | Capable when                                                                                        | Not Capable                                |
+|----------------------------|-----------------------------------------------------------------------------------------------------|--------------------------------------------|
+| `resume`                   | the agent's command line resumes a session                                                          | Antigravity                                |
+| `fork`                     | the agent's command line starts a session branching from another                                    | Kimi, Antigravity                          |
+| `rename`                   | a session can be given a user-chosen title                                                          | Antigravity                                |
+| `delete`                   | a session and what the agent stores for it can be deleted                                           | —                                          |
+| `subagents`                | discovery names sub-agent transcripts on their session's stub, and a delete removes and counts them | Pi, Antigravity                            |
+| `subagent_by_id`           | a sub-agent transcript's ID resolves through `resolve_session_id` to a stub of its own              | Claude, Kimi, Pi, OMP, Antigravity         |
+| `session_id_lookup`        | a typed session ID resolves through `is_session_id_shape` and `resolve_session_id`                  | Pi, OMP                                    |
+| `workspace_sessions_dir`   | the agent stores the sessions recorded in each working directory in a directory of their own        | Codex, OpenCode, Antigravity               |
+| `current_session_variable` | each shell the agent runs gets an environment variable holding its session's ID                     | OpenCode, Kimi, Grok, Pi, OMP, Antigravity |
 
 <!-- generated capability table: end -->
 
@@ -182,7 +182,8 @@ open finding dates from the agent's first stable release.
 | Kimi     | [releases](https://github.com/MoonshotAI/kimi-code/releases)                                            | 2.1.1            | —                     | 2026-10-13  |
 | Grok     | [changelog](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-shell/CHANGELOG.md) | 1.0.45           | 1.0.45                | 2026-10-11  |
 | Pi       | [releases](https://github.com/earendil-works/pi/releases)                                               | 1.1.0            | 1.1.0                 | 2026-10-12  |
-| OMP      | [releases](https://github.com/can1357/oh-my-pi/releases)                                                | 18.10.3          | —                     | 2026-10-12  |
+| OMP         | [releases](https://github.com/can1357/oh-my-pi/releases)                                                | 18.10.3          | —                     | 2026-10-12  |
+| Antigravity | [local](https://github.com/google-deepmind)                                                             | —                | —                     | —           |
 
 Each agent's section ends with `### Upstream findings: <agent>`: one bullet per
 finding, written `- **<status>** (<version>): <what changed>`. The version is the
@@ -1049,6 +1050,23 @@ and delete open read-write with foreign keys on. A sub-agent session's
 and removes them with the session in one transaction.
 
 ### Upstream findings: OpenCode
+
+None recorded.
+
+## Antigravity
+
+| Method                                 | Value                                         |
+|----------------------------------------|-----------------------------------------------|
+| `labels().name` / `.list` / `.display` | `agy` / `AGY` / `Antigravity`                 |
+| `storage()`                            | `AgyStorage`                                  |
+| `format()`                             | `AGY_TRANSCRIPT`                              |
+| `ref_namespaces().conversation`        | `agent-agy-v1`                                |
+| `ref_namespaces().project`             | `agent-agy-project-v1`                        |
+
+Antigravity CLI (agy) stores conversation sessions under `~/.gemini/antigravity-cli/brain/<uuid>/`.
+The transcript is recorded as JSONL in `.system_generated/logs/transcript.jsonl` (and `transcript_full.jsonl`).
+
+### Upstream findings: Antigravity
 
 None recorded.
 

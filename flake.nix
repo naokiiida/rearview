@@ -1,5 +1,5 @@
 {
-  description = "Browse and search AI assistant conversation history from the terminal.";
+  description = "Browse and search Claude Code, Pi, OMP, Codex, Kimi Code, Antigravity, and OpenCode conversation history from the terminal.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

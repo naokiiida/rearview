@@ -66,6 +66,7 @@ pub enum Source {
     Kimi,
     Grok,
     OpenCode,
+    Agy,
 }
 
 impl Source {

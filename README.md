@@ -14,7 +14,7 @@ Search, read, and continue local coding-agent conversations from one terminal in
 
 `rearview` supports Claude Code, [Codex](https://github.com/openai/codex),
 [OpenCode](https://opencode.ai), Kimi Code, Grok Build,
-[Pi](https://pi.dev), and [Oh My Pi (OMP)](https://omp.sh/). It finds their
+[Pi](https://pi.dev), [Oh My Pi (OMP)](https://omp.sh/), and Antigravity. It finds their
 local histories automatically and combines them in one list with lexical and
 semantic search.
 
@@ -37,6 +37,7 @@ semantic search.
 | Grok Build     | `GROK`     | Yes        | Session directories and index entries | Yes        | —               | `~/.grok/sessions`                                    | `GROK_HOME`                                         |
 | Pi             | `Pi`       | Yes        | The JSONL file                        | —          | —               | `~/.pi/agent/sessions`                                | `PI_CODING_AGENT_SESSION_DIR` or Pi settings        |
 | Oh My Pi (OMP) | `OMP`      | Yes        | The JSONL file and artifacts          | Yes        | —               | `~/.omp/agent/sessions`                               | OMP profile and Pi-compatible environment variables |
+| Antigravity    | `AGY`      | —          | Session directory                     | Yes        | —               | `~/.gemini/antigravity-cli/brain`                     | `ANTIGRAVITY_BRAIN_DIR`                             |
 
 - Every agent's sessions can be resumed, renamed and deleted.
 - **List label**: the label appears only when the list holds sessions from

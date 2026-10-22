@@ -8,6 +8,7 @@
 
 #[cfg(test)]
 mod agent_listings;
+pub(crate) mod agy;
 mod capability;
 #[cfg(test)]
 mod capability_table;
@@ -324,9 +325,11 @@ static CODEX: codex::CodexProvider = codex::CodexProvider;
 static KIMI: kimi::KimiProvider = kimi::KimiProvider;
 static GROK: grok::GrokProvider = grok::GrokProvider;
 static OPENCODE: opencode::OpenCodeProvider = opencode::OpenCodeProvider;
+static AGY: agy::AgyProvider = agy::AgyProvider;
 
 /// Every supported provider, in the order sources are presented to the user.
-static PROVIDERS: &[&dyn SessionProvider] = &[&CLAUDE, &CODEX, &OPENCODE, &KIMI, &GROK, &PI, &OMP];
+static PROVIDERS: &[&dyn SessionProvider] =
+    &[&CLAUDE, &CODEX, &OPENCODE, &KIMI, &GROK, &PI, &OMP, &AGY];
 
 pub fn providers() -> &'static [&'static dyn SessionProvider] {
     PROVIDERS
@@ -523,6 +526,7 @@ impl Source {
             Self::Kimi => &KIMI,
             Self::Grok => &GROK,
             Self::OpenCode => &OPENCODE,
+            Self::Agy => &AGY,
         }
     }
 }
@@ -633,6 +637,7 @@ mod tests {
             (Source::Kimi, "kimi", *b"KIHIST01", 17),
             (Source::Grok, "grok", *b"GKHIST01", 9),
             (Source::OpenCode, "opencode", *b"OCHIST01", 15),
+            (Source::Agy, "agy", *b"AGYHST01", 1),
         ];
         assert_eq!(
             pinned.len(),

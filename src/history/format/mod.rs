@@ -5,6 +5,7 @@
 //! say*. Where the file was found, how it is cached and how the session is resumed
 //! belong to the [`SessionProvider`](super::provider::SessionProvider) instead.
 
+pub mod agy;
 pub mod claude;
 pub mod codex;
 pub mod dropped;

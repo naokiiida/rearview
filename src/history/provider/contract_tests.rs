@@ -20,7 +20,7 @@
 //! [`every_record_sessions`]. It fails for a provider without a fixture.
 
 use super::{
-    Capability, Deleted, DenialDetail, DiscoveredSessions, Fingerprint, Operation, ResolvedSession,
+    Capability, Deleted, DiscoveredSessions, Fingerprint, Operation, ResolvedSession,
     RootEnvironment, SessionCache, SessionIdResolver, SessionLaunch, SessionProvider,
     SessionRenamer, SessionRoot, SessionStorage, SessionStub, SessionTitle, Stored, SubagentFinder,
 };
@@ -495,6 +495,7 @@ mod runner {
         &super::super::grok::tests::GrokFixture,
         &super::super::pi::tests::PiFixture,
         &super::super::omp::tests::OmpFixture,
+        &super::super::agy::tests::AgyFixture,
     ];
 
     /// Fails for a provider without a fixture.
@@ -639,10 +640,14 @@ impl SessionFamily {
     fn write(fixture: &dyn ProviderFixture, home: &Path) -> Self {
         let ids = fixture.ids();
         let session = fixture.write_session(home, ids.session);
-        let subagents = vec![
-            fixture.write_subagent(home, ids.session),
-            fixture.write_nested_subagent(home, ids.session),
-        ];
+        let subagents = if fixture.provider().subagents().is_capable() {
+            vec![
+                fixture.write_subagent(home, ids.session),
+                fixture.write_nested_subagent(home, ids.session),
+            ]
+        } else {
+            Vec::new()
+        };
         let other = fixture.write_session(home, ids.other);
         Self {
             session,
@@ -1035,7 +1040,7 @@ fn a_provider_declaring_fork_not_capable_refuses_fork_session() {
                 AppError::NotCapable {
                     agent,
                     operation: Operation::Fork,
-                    detail: Some(DenialDetail::ResumeThenForkInside),
+                    ..
                 } if agent == provider.labels().display
             ),
             "{refusal:?}"
