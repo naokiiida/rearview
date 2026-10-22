@@ -116,6 +116,21 @@ builds against. Ubuntu 24.04 and Debian 13 are new enough; Ubuntu 22.04 and
 Debian 12 are not, and the build stops at the linking step. Homebrew and the
 install script above install a prebuilt binary, which works on both.
 
+### Nix
+
+With [Nix flakes](https://nixos.org):
+
+```sh
+# Run directly without installing
+nix run github:astral303/rearview
+
+# Or install to your user profile
+nix profile install github:astral303/rearview
+
+# Or enter a temporary development shell
+nix develop github:astral303/rearview
+```
+
 Confirm the installation:
 
 ```sh
