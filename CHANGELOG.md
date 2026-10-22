@@ -2,6 +2,24 @@
 
 ### Enhancements
 
+- Add support for Antigravity (AGY) sessions: list, search, read, resume,
+  rename and delete.
+  - Discover and parse transcripts from
+    `~/.gemini/antigravity-cli/brain/<uuid>/.system_generated/logs/transcript.jsonl`
+    (with `transcript_full.jsonl` fallback for truncated records).
+  - Overlay session titles and working directory paths from
+    `conversation_summaries.db`, enabling local workspace filtering and clean
+    project names in the conversation list.
+  - Extract model names from `conversations/<id>.db` metadata.
+  - Pair multi-call tool results in FIFO order and map canonical tool names.
+  - Clean whitespace and line breaks when renaming sessions in
+    `conversation_summaries.db`.
+  - Resume sessions with `agy --conversation <id>` in the session's recorded
+    project directory.
+- Add Determinate Nix flake (`flake.nix` and `flake.lock`) with dynamic
+  onnxruntime linking and macOS SDK framework support.
+- Update Homebrew formula template with isolated `libexec` wrapper execution to
+  prevent runtime dynamic library conflicts.
 - Add support for Grok Build sessions: list, search, read, resume, fork,
   rename and delete.
 - Add support for OpenCode 2 sessions: list, search, read, resume, rename and

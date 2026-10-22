@@ -98,17 +98,17 @@ while the table is out of date.
 
 <!-- generated capability table: begin -->
 
-| Capability                 | Capable when                                                                                        | Not Capable                                |
-|----------------------------|-----------------------------------------------------------------------------------------------------|--------------------------------------------|
-| `resume`                   | the agent's command line resumes a session                                                          | —                                          |
-| `fork`                     | the agent's command line starts a session branching from another                                    | Kimi, Antigravity                          |
-| `rename`                   | a session can be given a user-chosen title                                                          | —                                          |
-| `delete`                   | a session and what the agent stores for it can be deleted                                           | —                                          |
-| `subagents`                | discovery names sub-agent transcripts on their session's stub, and a delete removes and counts them | Pi, Antigravity                            |
-| `subagent_by_id`           | a sub-agent transcript's ID resolves through `resolve_session_id` to a stub of its own              | Claude, Kimi, Pi, OMP, Antigravity         |
-| `session_id_lookup`        | a typed session ID resolves through `is_session_id_shape` and `resolve_session_id`                  | Pi, OMP                                    |
-| `workspace_sessions_dir`   | the agent stores the sessions recorded in each working directory in a directory of their own        | Codex, OpenCode, Antigravity               |
-| `current_session_variable` | each shell the agent runs gets an environment variable holding its session's ID                     | OpenCode, Kimi, Grok, Pi, OMP, Antigravity |
+| Capability                 | Capable when                                                                                        | Not Capable                   |
+|----------------------------|-----------------------------------------------------------------------------------------------------|-------------------------------|
+| `resume`                   | the agent's command line resumes a session                                                          | —                             |
+| `fork`                     | the agent's command line starts a session branching from another                                    | Kimi, Antigravity             |
+| `rename`                   | a session can be given a user-chosen title                                                          | —                             |
+| `delete`                   | a session and what the agent stores for it can be deleted                                           | —                             |
+| `subagents`                | discovery names sub-agent transcripts on their session's stub, and a delete removes and counts them | Pi                            |
+| `subagent_by_id`           | a sub-agent transcript's ID resolves through `resolve_session_id` to a stub of its own              | Claude, Kimi, Pi, OMP         |
+| `session_id_lookup`        | a typed session ID resolves through `is_session_id_shape` and `resolve_session_id`                  | Pi, OMP                       |
+| `workspace_sessions_dir`   | the agent stores the sessions recorded in each working directory in a directory of their own        | Codex, OpenCode, Antigravity  |
+| `current_session_variable` | each shell the agent runs gets an environment variable holding its session's ID                     | OpenCode, Kimi, Grok, Pi, OMP |
 
 <!-- generated capability table: end -->
 
@@ -1060,11 +1060,47 @@ None recorded.
 | `labels().name` / `.list` / `.display` | `agy` / `AGY` / `Antigravity`                 |
 | `storage()`                            | `AgyStorage`                                  |
 | `format()`                             | `AGY_TRANSCRIPT`                              |
+| `resume()`                             | `AgyLauncher`                                 |
 | `ref_namespaces().conversation`        | `agent-agy-v1`                                |
 | `ref_namespaces().project`             | `agent-agy-project-v1`                        |
 
-Antigravity CLI (agy) stores conversation sessions under `~/.gemini/antigravity-cli/brain/<uuid>/`.
-The transcript is recorded as JSONL in `.system_generated/logs/transcript.jsonl` (and `transcript_full.jsonl`).
+| Storage               | Value                                                              |
+|-----------------------|--------------------------------------------------------------------|
+| Default root          | `~/.gemini/antigravity-cli/brain/`                                 |
+| Layout                | `<uuid>/.system_generated/logs/transcript.jsonl`                   |
+| Root override         | `ANTIGRAVITY_BRAIN_DIR`, or `ANTIGRAVITY_DATA_DIR` (using `brain/`)  |
+| Excluded files        | everything except `transcript.jsonl` in `.system_generated/logs/`  |
+| Session               | each root UUID directory under `brain/` without a parent           |
+| Sub-agent transcripts | child sessions named in `conversation_summaries.db` `parent_conversation_id` |
+| External titles       | `conversation_summaries.db` (`conversation_summaries.title`)       |
+| Cache files           | `agy/root-<hash>/shard-NN.bin`                                     |
+| Cache magic / schema  | `AGYHST02` / 1                                                     |
+| Schema pin            | 3 (`conversation_summaries.db` `PRAGMA user_version`)              |
+
+Antigravity CLI (agy) stores conversation sessions under
+`~/.gemini/antigravity-cli/brain/<uuid>/`. `conversation_summaries.db` in
+`~/.gemini/antigravity-cli` (or `$ANTIGRAVITY_DATA_DIR`) maintains session
+titles (`title`), project working directories (`directory_path`), and session
+metadata. When `conversation_summaries.db` has a non-empty title for a
+session, `external_titles` overlays it on warm loads. A session rename in
+`rearview` writes the cleaned title directly to `conversation_summaries.db`.
+
+| Transcript format       | Value                                                                                         |
+|-------------------------|-----------------------------------------------------------------------------------------------|
+| Records                 | JSON Lines steps: `{step_index, type, source, content, thinking, tool_calls, ...}`           |
+| Session header          | none in the file                                                                              |
+| File states its agent   | no; directory path under `.system_generated/logs/transcript.jsonl` and parent session metadata |
+| Identity                | the UUID session directory name                                                               |
+| Model metadata          | extracted from `<data>/conversations/<id>.db` `gen_metadata` blobs                             |
+| Working directory       | prompt `<USER_INFORMATION>` active workspaces tags or `conversation_summaries.db`             |
+
+The reader parses `.system_generated/logs/transcript.jsonl`, reading
+`transcript_full.jsonl` when truncated records are present. User prompt steps
+carry the prompt text; assistant steps carry responses and tool calls.
+Canonical tool names map to standard actions (`run_command` to `Bash`,
+`read_file` to `View`, `write_file`/`edit_file` to `Edit`, `invoke_subagent` to
+`Agent`). Tool results are paired in FIFO order with tool calls. System prompts,
+guidelines, and telemetry steps are skipped.
 
 ### Upstream findings: Antigravity
 

@@ -37,7 +37,7 @@ semantic search.
 | Grok Build     | `GROK`     | Yes        | Session directories and index entries | Yes        | —               | `~/.grok/sessions`                                    | `GROK_HOME`                                         |
 | Pi             | `Pi`       | Yes        | The JSONL file                        | —          | —               | `~/.pi/agent/sessions`                                | `PI_CODING_AGENT_SESSION_DIR` or Pi settings        |
 | Oh My Pi (OMP) | `OMP`      | Yes        | The JSONL file and artifacts          | Yes        | —               | `~/.omp/agent/sessions`                               | OMP profile and Pi-compatible environment variables |
-| Antigravity    | `AGY`      | —          | Session directory                     | Yes        | —               | `~/.gemini/antigravity-cli/brain`                     | `ANTIGRAVITY_BRAIN_DIR`                             |
+| Antigravity    | `AGY`      | No         | Session directory, sub-agents and index entries | Yes        | Yes             | `~/.gemini/antigravity-cli/brain`                     | `ANTIGRAVITY_BRAIN_DIR` or `ANTIGRAVITY_DATA_DIR`   |
 
 - Every agent's sessions can be resumed, renamed and deleted.
 - **List label**: the label appears only when the list holds sessions from
@@ -493,8 +493,8 @@ Inside the viewer, press `I` to copy the session ID.
 
 `--show-dir <agent>` skips the list; it prints the directory holding the
 agent's sessions for the current directory, and exits. The agent is `claude`,
-`kimi`, `grok`, `pi` or `omp`; Codex and OpenCode store no sessions directory
-per working directory, and `--show-dir` refuses them.
+`kimi`, `grok`, `pi` or `omp`; Codex, OpenCode, and Antigravity store no sessions
+directory per working directory, and `--show-dir` refuses them.
 
 `--show-all-dirs` prints one line per agent instead: the agent, `: `, and the
 path. The path follows the first space:
@@ -697,6 +697,38 @@ A pasted OMP session ID finds the session only when the list already shows it.
 
 Fork uses OMP's native file-based fork. Delete removes the selected JSONL file
 and its sibling artifact directory.
+
+### Antigravity
+
+Antigravity CLI (agy) stores conversation sessions in
+`~/.gemini/antigravity-cli/brain/<uuid>`. `ANTIGRAVITY_BRAIN_DIR` overrides the
+brain directory directly; `ANTIGRAVITY_DATA_DIR` overrides the data root and
+looks for sessions under its `brain` subdirectory.
+
+The conversation transcript is read from `.system_generated/logs/transcript.jsonl`
+(and `transcript_full.jsonl` when truncated records are present). User requests,
+assistant text, and tool input and output are searchable. System guidelines,
+prompts framing, telemetry, and runtime data steps are omitted. Tool results are
+paired with their calls in FIFO order, and canonical tool names are mapped for
+consistent display (`run_command` to `Bash`, `read_file` to `View`,
+`write_file`/`edit_file` to `Edit`, and `invoke_subagent` to `Agent`). Thinking
+steps and agent reasoning can be displayed with the thinking toggle.
+
+Session titles are loaded from `conversation_summaries.db`
+(`conversation_summaries.title`), falling back to the initial user prompt.
+Working directories and project paths are resolved from request metadata or
+`conversation_summaries.db` (`directory_path` or `workspace_paths`), enabling
+project name display in the list and workspace filtering (`--local`).
+
+Model names are extracted from the session's `conversations/<id>.db` metadata.
+Subagents linked through `conversation_summaries.db` (`parent_conversation_id`)
+are folded under the parent conversation and remain searchable. A rename in
+`rearview` directly updates the title in `conversation_summaries.db`, cleaning
+whitespace and line breaks, so the change is immediately reflected in `agy`.
+
+To fork an Antigravity session, resume it, then run Antigravity's `/fork`
+command. Delete removes the session directory, its subagent directories, its
+`conversations/<id>.db` files, and its entries in `conversation_summaries.db`.
 
 ## Configuration
 
