@@ -1,7 +1,9 @@
 //! Antigravity CLI (agy) sessions: stored under `~/.gemini/antigravity-cli/brain/<uuid>/`.
 
 use super::load::apply_external_title;
+use super::sqlite::SchemaPin;
 use super::storage::SessionStorage;
+use super::subagents::SubagentForest;
 use super::walk::{self, SessionFiles};
 use super::{
     Capability, Deleted, DenialDetail, DiscoveredSessions, RefNamespaces, ResolvedSession,
@@ -16,6 +18,7 @@ use crate::history::format::agy::{AGY_TRANSCRIPT, AGY_TRANSCRIPT_FILE};
 use crate::history::{Conversation, Source, parser};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Once;
 
 pub struct AgyProvider;
 
@@ -89,11 +92,11 @@ impl SessionProvider for AgyProvider {
     }
 
     fn subagents(&self) -> Capability<&dyn SubagentFinder> {
-        Capability::NotCapable(None)
+        Capability::Capable(self)
     }
 
     fn subagent_by_id(&self) -> Capability {
-        Capability::NotCapable(None)
+        Capability::Capable(())
     }
 
     fn session_id_lookup(&self) -> Capability<&dyn SessionIdResolver> {
@@ -113,7 +116,7 @@ impl SessionProvider for AgyProvider {
     }
 
     fn current_session_variable(&self) -> Capability<&'static str> {
-        Capability::NotCapable(None)
+        Capability::Capable("ANTIGRAVITY_CONVERSATION_ID")
     }
 }
 
@@ -196,24 +199,99 @@ fn summaries_database(brain: &Path) -> PathBuf {
 impl SessionDeleter for AgyProvider {
     fn delete_session(&self, path: &Path) -> Result<Deleted> {
         crate::history::format::require_owned_transcript(Source::Agy, path)?;
+        let subagents = self.subagent_transcripts(path).unwrap_or_default();
+        let subagent_sessions = subagents.len();
+        for subagent in &subagents {
+            if let Some(dir) = session_dir_of(subagent) {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+        }
         if let Some(session_dir) = session_dir_of(path) {
             std::fs::remove_dir_all(&session_dir)?;
-            Ok(Deleted::just_the_session())
         } else if path.is_file() {
             std::fs::remove_file(path)?;
-            Ok(Deleted::just_the_session())
         } else {
-            Err(AppError::ConfigError(format!(
+            return Err(AppError::ConfigError(format!(
                 "{} is not a valid Antigravity session directory",
                 path.display()
-            )))
+            )));
         }
+
+        // Clean up SQLite records in conversation_summaries.db and conversations/<id>.db
+        if let Some(brain) = session_dir_of(path).and_then(|d| d.parent().map(Path::to_path_buf)) {
+            let db_path = summaries_database(&brain);
+            if let Ok(connection) = rusqlite::Connection::open_with_flags(
+                &db_path,
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+            ) {
+                let _ = connection.busy_timeout(std::time::Duration::from_secs(2));
+                if let Some(id) = crate::history::format::agy::session_id_of(path) {
+                    let _ = connection.execute(
+                        "DELETE FROM conversation_summaries WHERE conversation_id = ?1 OR parent_conversation_id = ?1",
+                        [&id],
+                    );
+                }
+            }
+            let conv_dir = brain.parent().unwrap_or(&brain).join("conversations");
+            if let Some(id) = crate::history::format::agy::session_id_of(path) {
+                let _ = std::fs::remove_file(conv_dir.join(format!("{id}.db")));
+            }
+            for subagent in &subagents {
+                if let Some(id) = crate::history::format::agy::session_id_of(subagent) {
+                    let _ = std::fs::remove_file(conv_dir.join(format!("{id}.db")));
+                }
+            }
+        }
+
+        Ok(Deleted {
+            subagent_sessions,
+            ..Deleted::just_the_session()
+        })
     }
 }
 
 impl SubagentFinder for AgyProvider {
-    fn subagent_transcripts(&self, _locator: &Path) -> Result<Vec<PathBuf>> {
-        Ok(Vec::new())
+    fn subagent_transcripts(&self, locator: &Path) -> Result<Vec<PathBuf>> {
+        let Some(session_id) = crate::history::format::agy::session_id_of(locator) else {
+            return Ok(Vec::new());
+        };
+        let Some(brain) = session_dir_of(locator).and_then(|d| d.parent().map(Path::to_path_buf)) else {
+            return Ok(Vec::new());
+        };
+        let db_path = summaries_database(&brain);
+        let Ok(connection) = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        ) else {
+            return Ok(Vec::new());
+        };
+        let Ok(mut stmt) = connection.prepare(
+            "SELECT conversation_id, parent_conversation_id FROM conversation_summaries WHERE parent_conversation_id != ''",
+        ) else {
+            return Ok(Vec::new());
+        };
+        let mut parents = Vec::new();
+        if let Ok(rows) = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+        }) {
+            for row in rows.flatten() {
+                parents.push((row.0, row.1));
+            }
+        }
+        let forest = SubagentForest::new(parents);
+        let child_ids = forest.subagents_of(&session_id);
+        let mut subagents = Vec::new();
+        for cid in child_ids {
+            let transcript = brain
+                .join(cid)
+                .join(".system_generated")
+                .join("logs")
+                .join(AGY_TRANSCRIPT_FILE);
+            if transcript.is_file() {
+                subagents.push(transcript);
+            }
+        }
+        Ok(subagents)
     }
 }
 
@@ -232,23 +310,43 @@ impl SessionIdResolver for AgyProvider {
                 .join(".system_generated")
                 .join("logs")
                 .join(AGY_TRANSCRIPT_FILE);
-            if transcript.is_file()
-                && let Some(stub) = walk::session_stubs(
+            if transcript.is_file() {
+                let subagents = self.subagent_transcripts(&transcript)?;
+                if let Some(stub) = walk::session_stubs(
                     &root,
                     vec![SessionFiles {
                         transcript,
-                        subagents: Vec::new(),
+                        subagents,
                     }],
                 )
                 .into_iter()
                 .next()
-            {
-                return Ok(Some(ResolvedSession { root, stub }));
+                {
+                    return Ok(Some(ResolvedSession { root, stub }));
+                }
             }
         }
         Ok(None)
     }
 }
+
+/// The pin: the newest SQLite schema version of `conversation_summaries.db`
+/// this release was developed against.
+const NEWEST_VERIFIED_USER_VERSION: i64 = 3;
+
+fn newest_unverified_version(connection: &rusqlite::Connection) -> Option<String> {
+    connection
+        .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+        .ok()
+        .filter(|&v| v > NEWEST_VERIFIED_USER_VERSION)
+        .map(|v| v.to_string())
+}
+
+static SCHEMA_PIN: SchemaPin = SchemaPin {
+    newest_verified: &NEWEST_VERIFIED_USER_VERSION,
+    newest_unverified: newest_unverified_version,
+    reported: Once::new(),
+};
 
 #[cfg(test)]
 fn brain_root_from(override_dir: Option<&str>, home: &Path) -> SessionRoot {
@@ -293,7 +391,7 @@ impl SessionStorage for AgyStorage {
     }
 
     fn discover(&self, root: &SessionRoot) -> Result<DiscoveredSessions> {
-        let mut sessions = Vec::new();
+        let mut disk_sessions: HashMap<String, PathBuf> = HashMap::new();
         let entries = match std::fs::read_dir(&root.path) {
             Ok(e) => e,
             Err(_) => return Ok(DiscoveredSessions::complete(Vec::new())),
@@ -311,15 +409,68 @@ impl SessionStorage for AgyStorage {
                 .join(AGY_TRANSCRIPT_FILE);
 
             if transcript.is_file() {
-                sessions.push(SessionFiles {
-                    transcript,
-                    subagents: Vec::new(),
-                });
+                if let Some(name) = session_path.file_name().and_then(|n| n.to_str()) {
+                    disk_sessions.insert(name.to_owned(), transcript);
+                }
             }
         }
 
+        let db_path = summaries_database(&root.path);
+        let forest = if let Ok(connection) = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        ) {
+            let mut parents = Vec::new();
+            if let Ok(mut stmt) = connection.prepare(
+                "SELECT conversation_id, parent_conversation_id FROM conversation_summaries",
+            ) {
+                if let Ok(rows) = stmt.query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+                }) {
+                    for row in rows.flatten() {
+                        let parent = row.1.filter(|p| !p.trim().is_empty());
+                        parents.push((row.0, parent));
+                    }
+                }
+            }
+            for id in disk_sessions.keys() {
+                if !parents.iter().any(|(p_id, _)| p_id == id) {
+                    parents.push((id.clone(), None));
+                }
+            }
+            Some(SubagentForest::new(parents))
+        } else {
+            None
+        };
+
+        let session_files = if let Some(forest) = forest {
+            let mut files = Vec::new();
+            for (session_id, subagent_ids) in forest.sessions() {
+                if let Some(transcript) = disk_sessions.get(&session_id) {
+                    let subagents = subagent_ids
+                        .into_iter()
+                        .filter_map(|sid| disk_sessions.get(&sid).cloned())
+                        .collect();
+                    files.push(SessionFiles {
+                        transcript: transcript.clone(),
+                        subagents,
+                    });
+                }
+            }
+            files
+        } else {
+            disk_sessions
+                .into_values()
+                .map(|transcript| SessionFiles {
+                    transcript,
+                    subagents: Vec::new(),
+                })
+                .collect()
+        };
+
         Ok(DiscoveredSessions::complete(walk::session_stubs(
-            root, sessions,
+            root,
+            session_files,
         )))
     }
 
@@ -330,6 +481,9 @@ impl SessionStorage for AgyStorage {
         debug_level: Option<DebugLevel>,
         on_transcript_read: &(dyn Fn() + Sync),
     ) -> Result<Option<Conversation>> {
+        let summaries_db = summaries_database(&root.path);
+        SCHEMA_PIN.warn_when_schema_outruns_reader(&summaries_db, debug_level);
+
         let mut conversation =
             parser::process_session_file(stub, &AGY_TRANSCRIPT, debug_level, on_transcript_read)?;
         let Some(conversation) = conversation.as_mut() else {
@@ -513,6 +667,9 @@ pub(crate) mod tests {
 
     pub(crate) struct AgyFixture;
 
+    const SUBAGENT_SESSION: &str = "00000000-0000-4000-8000-000000000011";
+    const NESTED_SUBAGENT_SESSION: &str = "00000000-0000-4000-8000-000000000012";
+
     fn root_of(home: &Path) -> PathBuf {
         home.join("brain")
     }
@@ -529,10 +686,11 @@ pub(crate) mod tests {
         workspace_uris: &str,
     ) {
         let connection = rusqlite::Connection::open(summaries_database(brain)).unwrap();
+        connection.pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION).unwrap();
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS conversation_summaries \
-                 (conversation_id text PRIMARY KEY, title text NOT NULL DEFAULT '', workspace_uris text NOT NULL DEFAULT '')",
+                 (conversation_id text PRIMARY KEY, title text NOT NULL DEFAULT '', workspace_uris text NOT NULL DEFAULT '', parent_conversation_id text NOT NULL DEFAULT '')",
                 [],
             )
             .unwrap();
@@ -542,6 +700,30 @@ pub(crate) mod tests {
                  VALUES (?1, ?2) \
                  ON CONFLICT(conversation_id) DO UPDATE SET workspace_uris = excluded.workspace_uris",
                 rusqlite::params![session, workspace_uris],
+            )
+            .unwrap();
+    }
+
+    pub(crate) fn write_summary_row_with_parent(
+        brain: &Path,
+        session: &str,
+        parent: &str,
+    ) {
+        let connection = rusqlite::Connection::open(summaries_database(brain)).unwrap();
+        connection.pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION).unwrap();
+        connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS conversation_summaries \
+                 (conversation_id text PRIMARY KEY, title text NOT NULL DEFAULT '', workspace_uris text NOT NULL DEFAULT '', parent_conversation_id text NOT NULL DEFAULT '')",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO conversation_summaries (conversation_id, parent_conversation_id) \
+                 VALUES (?1, ?2) \
+                 ON CONFLICT(conversation_id) DO UPDATE SET parent_conversation_id = excluded.parent_conversation_id",
+                rusqlite::params![session, parent],
             )
             .unwrap();
     }
@@ -588,6 +770,26 @@ pub(crate) mod tests {
             transcript_path
         }
 
+        fn write_subagent(&self, home: &Path, session: &str) -> PathBuf {
+            let path = self.write_session(home, SUBAGENT_SESSION);
+            write_summary_row_with_parent(&root_of(home), SUBAGENT_SESSION, session);
+            path
+        }
+
+        fn write_nested_subagent(&self, home: &Path, _session: &str) -> PathBuf {
+            let path = self.write_session(home, NESTED_SUBAGENT_SESSION);
+            write_summary_row_with_parent(&root_of(home), NESTED_SUBAGENT_SESSION, SUBAGENT_SESSION);
+            path
+        }
+
+        fn subagent_id(&self, _session: &str) -> String {
+            SUBAGENT_SESSION.to_owned()
+        }
+
+        fn is_stored(&self, _home: &Path, locator: &Path) -> bool {
+            locator.exists()
+        }
+
         fn session_working_dir(&self) -> PathBuf {
             PathBuf::from("/tmp/test-project")
         }
@@ -607,18 +809,20 @@ pub(crate) mod tests {
                 .join(".system_generated")
                 .join("logs")
                 .join(AGY_TRANSCRIPT_FILE);
-            if transcript.is_file()
-                && let Some(stub) = walk::session_stubs(
+            if transcript.is_file() {
+                let subagents = AgyProvider.subagent_transcripts(&transcript)?;
+                if let Some(stub) = walk::session_stubs(
                     &root,
                     vec![SessionFiles {
                         transcript,
-                        subagents: Vec::new(),
+                        subagents,
                     }],
                 )
                 .into_iter()
                 .next()
-            {
-                return Ok(Some(ResolvedSession { root, stub }));
+                {
+                    return Ok(Some(ResolvedSession { root, stub }));
+                }
             }
             Ok(None)
         }
@@ -631,11 +835,27 @@ pub(crate) mod tests {
 
         fn every_record_session(&self) -> AgentSession {
             let temp = tempfile::tempdir().unwrap();
-            let path = self.write_session(temp.path(), "00000000-0000-4000-8000-000000000001");
+            let parent_id = "00000000-0000-4000-8000-000000000001";
+            let child_id = "00000000-0000-4000-8000-000000000002";
+            let path = self.write_session(temp.path(), parent_id);
+            let child_path = self
+                .root_under(temp.path())
+                .path
+                .join(child_id)
+                .join(".system_generated")
+                .join("logs")
+                .join(AGY_TRANSCRIPT_FILE);
+            std::fs::create_dir_all(child_path.parent().unwrap()).unwrap();
+            let subagent_jsonl = r#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","created_at":"2026-10-20T01:42:17.200Z","content":"<USER_REQUEST>\nsubagent research\n</USER_REQUEST>\nCommand Working Directory: /tmp/test-project"}
+{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-10-20T01:42:17.500Z","content":"subagent result found","input_tokens":20,"output_tokens":10}
+"#;
+            std::fs::write(&child_path, subagent_jsonl).unwrap();
+            write_summary_row_with_parent(&root_of(temp.path()), child_id, parent_id);
+
             AgentSession::new(
                 Source::Agy,
                 path,
-                Vec::new(),
+                vec![child_path],
                 vec![
                     Marker::searched("user text", "inspect the project structure"),
                     Marker::searched("assistant text", "Fixed it successfully."),
@@ -643,9 +863,12 @@ pub(crate) mod tests {
                     Marker::agent_searched("tool call", "/tmp/test-project/src/main.rs")
                         .in_summary_row("Read 1 file"),
                     Marker::searched("tool result", "file content").in_summary_row("Read 1 file"),
+                    Marker::agent_searched("sub-agent message", "subagent result found"),
+                    Marker::searched("assistant follow-up", "The bug in main.rs has been identified"),
                 ],
             )
-            .with_reply_after_records_without_text("NUMBERED_REPLY_SENTINEL", 8)
+            .with_reply_after_records_without_text("NUMBERED_REPLY_SENTINEL", 10)
+            .with_subagent_tokens(30)
             .kept_in(temp)
         }
     }
@@ -808,5 +1031,68 @@ pub(crate) mod tests {
             conversation.project_name,
             Some("my-custom-project".to_string())
         );
+    }
+
+    #[test]
+    fn schema_pin_accepts_version_three_and_warns_on_newer() {
+        let home = tempfile::tempdir().unwrap();
+        let db_path = summaries_database(&home.path().join("brain"));
+        std::fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+        let connection = rusqlite::Connection::open(&db_path).unwrap();
+        connection.pragma_update(None, "user_version", 3).unwrap();
+        assert_eq!(newest_unverified_version(&connection), None);
+
+        connection.pragma_update(None, "user_version", 4).unwrap();
+        assert_eq!(newest_unverified_version(&connection), Some("4".to_string()));
+    }
+
+    #[test]
+    fn current_session_variable_is_antigravity_conversation_id() {
+        assert!(matches!(
+            AgyProvider.current_session_variable(),
+            Capability::Capable("ANTIGRAVITY_CONVERSATION_ID")
+        ));
+    }
+
+    #[test]
+    fn subagent_discovery_folds_children_into_parent_session() {
+        let home = tempfile::tempdir().unwrap();
+        let root = AgyFixture.root_under(home.path());
+        let parent = AgyFixture.write_session(home.path(), SESSION);
+        let child = AgyFixture.write_subagent(home.path(), SESSION);
+
+        let discovered = AgyStorage.discover(&root).unwrap();
+        let stubs = discovered.stubs;
+
+        // Only the parent should be a root session
+        assert_eq!(stubs.len(), 1);
+        assert_eq!(stubs[0].locator, parent);
+        assert_eq!(stubs[0].subagents, vec![child]);
+    }
+
+    #[test]
+    fn delete_session_removes_subagents_and_cleans_up_database_rows() {
+        let home = tempfile::tempdir().unwrap();
+        let parent = AgyFixture.write_session(home.path(), SESSION);
+        let child = AgyFixture.write_subagent(home.path(), SESSION);
+
+        assert!(parent.exists());
+        assert!(child.exists());
+
+        let deleted = AgyProvider.delete_session(&parent).unwrap();
+        assert_eq!(deleted.subagent_sessions, 1);
+        assert!(!parent.exists());
+        assert!(!child.exists());
+
+        let db = summaries_database(&home.path().join("brain"));
+        let conn = rusqlite::Connection::open(db).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM conversation_summaries WHERE conversation_id = ?1 OR parent_conversation_id = ?1",
+                [SESSION],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
     }
 }

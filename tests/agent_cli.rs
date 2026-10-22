@@ -1425,6 +1425,50 @@ fn search_launched_from_a_codex_session_leaves_that_session_out() {
 }
 
 #[test]
+fn search_launched_from_an_antigravity_session_leaves_that_session_out() {
+    let config = tempfile::tempdir().expect("config");
+    let brain = tempfile::tempdir().expect("brain");
+    let current = "00000000-0000-4000-8000-000000000001";
+    let other = "00000000-0000-4000-8000-000000000002";
+
+    for id in [current, other] {
+        let session_dir = brain.path().join(id);
+        let logs_dir = session_dir.join(".system_generated").join("logs");
+        std::fs::create_dir_all(&logs_dir).unwrap();
+        let transcript = format!(
+            "{{\"step_index\":0,\"source\":\"USER_EXPLICIT\",\"type\":\"USER_INPUT\",\"status\":\"DONE\",\"created_at\":\"2026-10-20T01:42:13Z\",\"content\":\"<USER_REQUEST>\\nneedle for {id}\\n</USER_REQUEST>\\nCommand Working Directory: /tmp/test-project\"}}\n\
+             {{\"step_index\":1,\"source\":\"MODEL\",\"type\":\"PLANNER_RESPONSE\",\"status\":\"DONE\",\"created_at\":\"2026-10-20T01:42:14Z\",\"content\":\"answer\"}}\n"
+        );
+        std::fs::write(logs_dir.join("transcript.jsonl"), transcript).unwrap();
+    }
+
+    let search = ["agent", "search", "--lexical", "needle"];
+
+    let from_inside = stdout_of(
+        &rearview_in(config.path())
+            .env("ANTIGRAVITY_BRAIN_DIR", brain.path())
+            .env("ANTIGRAVITY_CONVERSATION_ID", current.to_ascii_uppercase())
+            .args(search)
+            .output()
+            .expect("run rearview from inside an Antigravity session"),
+    );
+    assert_hides(&from_inside, &format!("uuid={current}"));
+    assert_shows(&from_inside, &format!("uuid={other}"));
+
+    let included = stdout_of(
+        &rearview_in(config.path())
+            .env("ANTIGRAVITY_BRAIN_DIR", brain.path())
+            .env("ANTIGRAVITY_CONVERSATION_ID", current)
+            .args(search)
+            .arg("--include-current-session")
+            .output()
+            .expect("run rearview from inside an Antigravity session"),
+    );
+    assert_shows(&included, &format!("uuid={current}"));
+    assert_shows(&included, &format!("uuid={other}"));
+}
+
+#[test]
 fn ref_only_commands_parse_only_the_selected_transcript() {
     let config = tempfile::tempdir().expect("config");
     let project = project(config.path());
