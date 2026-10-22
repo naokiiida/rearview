@@ -31,7 +31,7 @@ class Rearview < Formula
       bin.install "rearview"
     else
       libexec.install Dir["*"]
-      (bin/"rearview").write_exec_script libexec/"rearview"
+      bin.write_exec_script libexec/"rearview"
     end
   end
 
