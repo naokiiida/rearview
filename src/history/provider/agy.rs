@@ -222,7 +222,8 @@ impl SessionDeleter for AgyProvider {
             let db_path = summaries_database(&brain);
             if let Ok(connection) = rusqlite::Connection::open_with_flags(
                 &db_path,
-                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                    | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
             ) {
                 let _ = connection.busy_timeout(std::time::Duration::from_secs(2));
                 if let Some(id) = crate::history::format::agy::session_id_of(path) {
@@ -255,7 +256,8 @@ impl SubagentFinder for AgyProvider {
         let Some(session_id) = crate::history::format::agy::session_id_of(locator) else {
             return Ok(Vec::new());
         };
-        let Some(brain) = session_dir_of(locator).and_then(|d| d.parent().map(Path::to_path_buf)) else {
+        let Some(brain) = session_dir_of(locator).and_then(|d| d.parent().map(Path::to_path_buf))
+        else {
             return Ok(Vec::new());
         };
         let db_path = summaries_database(&brain);
@@ -408,10 +410,10 @@ impl SessionStorage for AgyStorage {
                 .join("logs")
                 .join(AGY_TRANSCRIPT_FILE);
 
-            if transcript.is_file() {
-                if let Some(name) = session_path.file_name().and_then(|n| n.to_str()) {
-                    disk_sessions.insert(name.to_owned(), transcript);
-                }
+            if transcript.is_file()
+                && let Some(name) = session_path.file_name().and_then(|n| n.to_str())
+            {
+                disk_sessions.insert(name.to_owned(), transcript);
             }
         }
 
@@ -423,14 +425,12 @@ impl SessionStorage for AgyStorage {
             let mut parents = Vec::new();
             if let Ok(mut stmt) = connection.prepare(
                 "SELECT conversation_id, parent_conversation_id FROM conversation_summaries",
-            ) {
-                if let Ok(rows) = stmt.query_map([], |row| {
-                    Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
-                }) {
-                    for row in rows.flatten() {
-                        let parent = row.1.filter(|p| !p.trim().is_empty());
-                        parents.push((row.0, parent));
-                    }
+            ) && let Ok(rows) = stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+            }) {
+                for row in rows.flatten() {
+                    let parent = row.1.filter(|p| !p.trim().is_empty());
+                    parents.push((row.0, parent));
                 }
             }
             for id in disk_sessions.keys() {
@@ -504,12 +504,15 @@ impl SessionStorage for AgyStorage {
         if conversation
             .project_path
             .as_ref()
-            .map_or(true, |p| p.as_os_str().is_empty())
+            .is_none_or(|p| p.as_os_str().is_empty())
         {
-            if let Some(cwd) = conversation.cwd.clone().filter(|p| !p.as_os_str().is_empty()) {
+            if let Some(cwd) = conversation
+                .cwd
+                .clone()
+                .filter(|p| !p.as_os_str().is_empty())
+            {
                 conversation.project_path = Some(cwd.clone());
-                conversation.project_name =
-                    Some(crate::history::format_short_name_from_path(&cwd));
+                conversation.project_name = Some(crate::history::format_short_name_from_path(&cwd));
             } else {
                 conversation.cwd = None;
                 conversation.project_path = None;
@@ -591,19 +594,17 @@ pub(crate) fn percent_decode(s: &str) -> String {
     let mut bytes = Vec::with_capacity(s.len());
     let mut chars = s.as_bytes().iter().copied();
     while let Some(b) = chars.next() {
-        if b == b'%' {
-            if let (Some(h1), Some(h2)) = (chars.next(), chars.next()) {
-                if let Ok(byte) =
-                    u8::from_str_radix(std::str::from_utf8(&[h1, h2]).unwrap_or(""), 16)
-                {
-                    bytes.push(byte);
-                    continue;
-                }
-                bytes.push(b);
-                bytes.push(h1);
-                bytes.push(h2);
+        if b == b'%'
+            && let (Some(h1), Some(h2)) = (chars.next(), chars.next())
+        {
+            if let Ok(byte) = u8::from_str_radix(std::str::from_utf8(&[h1, h2]).unwrap_or(""), 16) {
+                bytes.push(byte);
                 continue;
             }
+            bytes.push(b);
+            bytes.push(h1);
+            bytes.push(h2);
+            continue;
         }
         bytes.push(b);
     }
@@ -618,30 +619,26 @@ fn session_summary_meta(brain: &Path, session_id: &str) -> Option<AgySummaryMeta
     .ok()?;
     if let Ok(mut statement) = connection.prepare(
         "SELECT title, workspace_uris FROM conversation_summaries WHERE conversation_id = ?1",
-    ) {
-        if let Ok((raw_title, raw_workspaces)) = statement.query_row([session_id], |row| {
-            Ok((
-                row.get::<_, Option<String>>(0)?,
-                row.get::<_, Option<String>>(1)?,
-            ))
-        }) {
-            let title = raw_title.filter(|t| !t.trim().is_empty());
-            let workspace = raw_workspaces.and_then(|raw| parse_workspace_uri(&raw));
-            return Some(AgySummaryMeta { title, workspace });
-        }
+    ) && let Ok((raw_title, raw_workspaces)) = statement.query_row([session_id], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+        ))
+    }) {
+        let title = raw_title.filter(|t| !t.trim().is_empty());
+        let workspace = raw_workspaces.and_then(|raw| parse_workspace_uri(&raw));
+        return Some(AgySummaryMeta { title, workspace });
     }
-    if let Ok(mut statement) = connection
-        .prepare("SELECT title FROM conversation_summaries WHERE conversation_id = ?1")
-    {
-        if let Ok(raw_title) =
+    if let Ok(mut statement) =
+        connection.prepare("SELECT title FROM conversation_summaries WHERE conversation_id = ?1")
+        && let Ok(raw_title) =
             statement.query_row([session_id], |row| row.get::<_, Option<String>>(0))
-        {
-            let title = raw_title.filter(|t| !t.trim().is_empty());
-            return Some(AgySummaryMeta {
-                title,
-                workspace: None,
-            });
-        }
+    {
+        let title = raw_title.filter(|t| !t.trim().is_empty());
+        return Some(AgySummaryMeta {
+            title,
+            workspace: None,
+        });
     }
     None
 }
@@ -686,7 +683,9 @@ pub(crate) mod tests {
         workspace_uris: &str,
     ) {
         let connection = rusqlite::Connection::open(summaries_database(brain)).unwrap();
-        connection.pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION).unwrap();
+        connection
+            .pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION)
+            .unwrap();
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS conversation_summaries \
@@ -704,13 +703,11 @@ pub(crate) mod tests {
             .unwrap();
     }
 
-    pub(crate) fn write_summary_row_with_parent(
-        brain: &Path,
-        session: &str,
-        parent: &str,
-    ) {
+    pub(crate) fn write_summary_row_with_parent(brain: &Path, session: &str, parent: &str) {
         let connection = rusqlite::Connection::open(summaries_database(brain)).unwrap();
-        connection.pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION).unwrap();
+        connection
+            .pragma_update(None, "user_version", NEWEST_VERIFIED_USER_VERSION)
+            .unwrap();
         connection
             .execute(
                 "CREATE TABLE IF NOT EXISTS conversation_summaries \
@@ -778,7 +775,11 @@ pub(crate) mod tests {
 
         fn write_nested_subagent(&self, home: &Path, _session: &str) -> PathBuf {
             let path = self.write_session(home, NESTED_SUBAGENT_SESSION);
-            write_summary_row_with_parent(&root_of(home), NESTED_SUBAGENT_SESSION, SUBAGENT_SESSION);
+            write_summary_row_with_parent(
+                &root_of(home),
+                NESTED_SUBAGENT_SESSION,
+                SUBAGENT_SESSION,
+            );
             path
         }
 
@@ -864,7 +865,10 @@ pub(crate) mod tests {
                         .in_summary_row("Read 1 file"),
                     Marker::searched("tool result", "file content").in_summary_row("Read 1 file"),
                     Marker::agent_searched("sub-agent message", "subagent result found"),
-                    Marker::searched("assistant follow-up", "The bug in main.rs has been identified"),
+                    Marker::searched(
+                        "assistant follow-up",
+                        "The bug in main.rs has been identified",
+                    ),
                 ],
             )
             .with_reply_after_records_without_text("NUMBERED_REPLY_SENTINEL", 10)
@@ -915,7 +919,11 @@ pub(crate) mod tests {
         let transcript = AgyFixture.write_session(home.path(), SESSION);
 
         assert!(AgyProvider.rename_session(&transcript, "").is_err());
-        assert!(AgyProvider.rename_session(&transcript, "   \n\t  ").is_err());
+        assert!(
+            AgyProvider
+                .rename_session(&transcript, "   \n\t  ")
+                .is_err()
+        );
     }
 
     #[test]
@@ -979,8 +987,12 @@ pub(crate) mod tests {
             Some(PathBuf::from("/Users/naokiiida/Documents/4_clone/rearview"))
         );
         assert_eq!(
-            parse_workspace_uri(r#"["file:///Users/naokiiida/Documents/Vault/Projects/Daily%20Digest"]"#),
-            Some(PathBuf::from("/Users/naokiiida/Documents/Vault/Projects/Daily Digest"))
+            parse_workspace_uri(
+                r#"["file:///Users/naokiiida/Documents/Vault/Projects/Daily%20Digest"]"#
+            ),
+            Some(PathBuf::from(
+                "/Users/naokiiida/Documents/Vault/Projects/Daily Digest"
+            ))
         );
         assert_eq!(
             parse_workspace_uri("file:///tmp/simple-path"),
@@ -1043,7 +1055,10 @@ pub(crate) mod tests {
         assert_eq!(newest_unverified_version(&connection), None);
 
         connection.pragma_update(None, "user_version", 4).unwrap();
-        assert_eq!(newest_unverified_version(&connection), Some("4".to_string()));
+        assert_eq!(
+            newest_unverified_version(&connection),
+            Some("4".to_string())
+        );
     }
 
     #[test]

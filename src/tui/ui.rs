@@ -1960,11 +1960,7 @@ fn build_list_row(
     let min_padding = 3;
     let left_budget = width.saturating_sub(indicator_len + right_len + min_padding);
 
-    let raw_project_part = match conv
-        .project_name
-        .as_deref()
-        .filter(|name| !name.is_empty())
-    {
+    let raw_project_part = match conv.project_name.as_deref().filter(|name| !name.is_empty()) {
         Some(name) => match frame_inputs.source_label_column {
             Some(column) => format!(
                 "{:<width$} · {name}",

@@ -328,16 +328,15 @@ fn extract_cwd(raw: &str) -> Option<PathBuf> {
 
 /// Fallback working directory extraction from tool calls (e.g. `run_command` Cwd).
 fn extract_cwd_from_tool_call(name: &str, args: &Value) -> Option<PathBuf> {
-    if name == "run_command" {
-        if let Some(cwd_val) = args.get("Cwd").or_else(|| args.get("cwd")) {
-            if let Some(s) = cwd_val.as_str() {
-                let trimmed = s.trim().trim_matches('"');
-                if (trimmed.starts_with('/') || (trimmed.len() > 2 && trimmed.as_bytes()[1] == b':'))
-                    && !trimmed.is_empty()
-                {
-                    return Some(PathBuf::from(trimmed));
-                }
-            }
+    if name == "run_command"
+        && let Some(cwd_val) = args.get("Cwd").or_else(|| args.get("cwd"))
+        && let Some(s) = cwd_val.as_str()
+    {
+        let trimmed = s.trim().trim_matches('"');
+        if (trimmed.starts_with('/') || (trimmed.len() > 2 && trimmed.as_bytes()[1] == b':'))
+            && !trimmed.is_empty()
+        {
+            return Some(PathBuf::from(trimmed));
         }
     }
     None
