@@ -1,0 +1,958 @@
+{
+  "$schema": "https://carapace.sh/schemas/command.json",
+  "name": "rearview",
+  "description": "rearview [OPTIONS] [FILE]",
+  "flags": [
+    {
+      "short": "t",
+      "long": "show-tools",
+      "description": "Show tool calls in the conversation output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "no-tools",
+      "description": "Hide tool calls from the conversation output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "d",
+      "long": "show-dir",
+      "description": "Print where the agent stores sessions for the current directory or its repository, and exit. Only supported for: claude, kimi, grok, pi, omp",
+      "type": "enum",
+      "choices": [
+        "claude",
+        "kimi",
+        "grok",
+        "pi",
+        "omp"
+      ],
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "show-all-dirs",
+      "description": "Print \"agent: directory\" for each agent storing sessions for the current directory or its repository, and exit",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "l",
+      "long": "last",
+      "description": "Show the last messages in the TUI preview (default)",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "first",
+      "description": "Show the first messages in the TUI preview",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "show-thinking",
+      "description": "Show thinking blocks and subagent internals in the conversation output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "hide-thinking",
+      "description": "Hide thinking blocks and subagent internals from the conversation output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "c",
+      "long": "resume",
+      "description": "Resume the selected session in the agent that recorded it",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "fork-session",
+      "description": "Fork the session when resuming",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "p",
+      "long": "show-path",
+      "description": "Print the selected conversation file path",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "i",
+      "long": "show-id",
+      "description": "Print the selected conversation session ID",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "plain",
+      "description": "Output plain text without ledger formatting",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "debug",
+      "description": "Print debug information (optionally filter by level: debug, info, warn, error)",
+      "type": "enum",
+      "choices": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
+      "repeatable": false
+    },
+    {
+      "short": "L",
+      "long": "local",
+      "description": "Show only sessions recorded in the current repository, or, outside one, the current directory",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "since",
+      "description": "Only sessions with a message this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+      "type": "string",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "after",
+      "description": "Alias for --since",
+      "type": "string",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "before",
+      "description": "Only sessions with a message older than this duration or date",
+      "type": "string",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "pager",
+      "description": "Display output through a pager (less)",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "no-pager",
+      "description": "Disable pager output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "render",
+      "description": "Render a JSONL file in ledger format and exit",
+      "type": "file",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "no-color",
+      "description": "Disable colored output",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "delete",
+      "description": "Delete a session by its ID and exit",
+      "type": "string",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "debug-search",
+      "description": "Debug search result scoring for a query",
+      "type": "string",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "h",
+      "long": "help",
+      "description": "Print help",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": "V",
+      "long": "version",
+      "description": "Print version",
+      "type": "bool",
+      "choices": null,
+      "repeatable": false
+    },
+    {
+      "short": null,
+      "long": "generate-semantic-cache",
+      "description": "Discovered via binary inspection (hidden/internal flag)",
+      "type": "bool",
+      "hidden": true
+    }
+  ],
+  "commands": [
+    {
+      "name": "agent",
+      "description": "Run agent-oriented search and transcript commands",
+      "flags": [
+        {
+          "short": "h",
+          "long": "help",
+          "description": "Print help",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        }
+      ],
+      "commands": [
+        {
+          "name": "sessions",
+          "description": "List sessions newest first, or those with a message inside a time window",
+          "flags": [
+            {
+              "short": "n",
+              "long": "limit",
+              "description": "Maximum sessions to list; 20 by default",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "budget",
+              "description": "Output budget in Unicode characters",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "no-budget",
+              "description": "Disable output budgeting",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "offset",
+              "description": "Skip this many sessions, newest first, before listing; a `continue sessions` record names the next value [default: 0]",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "local",
+              "description": "Only sessions recorded in the current repository, or, outside one, the current directory",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "all",
+              "description": "Sessions from all workspaces, overriding a configured local scope",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "include-current-session",
+              "description": "Include the session this command was launched from",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "since",
+              "description": "Only sessions with a message this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "after",
+              "description": "Alias for --since",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "before",
+              "description": "Only sessions with a message older than this duration or date",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": "h",
+              "long": "help",
+              "description": "Print help",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            }
+          ],
+          "commands": null
+        },
+        {
+          "name": "search",
+          "description": "Search across all conversations",
+          "flags": [
+            {
+              "short": null,
+              "long": "top",
+              "description": "Maximum conversations, or message hits with --flat",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "budget",
+              "description": "Output budget in Unicode characters",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "no-budget",
+              "description": "Disable output budgeting",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "flat",
+              "description": "Rank message hits across conversations; --top counts hits",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "hits-per-conv",
+              "description": "Maximum evidence hits to show per conversation in grouped output",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "all-hits",
+              "description": "Disable duplicate suppression inside grouped conversation results",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "offset",
+              "description": "Skip this many matching sessions, in rank order, before searching; a `continue search` record names the next value. With --mode hybrid, an offset runs a lexical search [default: 0]",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "local",
+              "description": "Only sessions recorded in the current repository, or, outside one, the current directory",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "all",
+              "description": "Sessions from all workspaces, overriding a configured local scope",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "include-current-session",
+              "description": "Include the session this command was launched from",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "perf-stats",
+              "description": "Report time per stage, sessions opened and the size of their transcripts on stderr",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "mode",
+              "description": "Search mode for this invocation Possible values: - lexical:  Every unquoted word must match, as a word or the start of one - semantic: Rank messages by meaning - exact:    Match the whole query as one phrase. Case-sensitive only when the query has an uppercase letter; spacing and line breaks need not match - hybrid:   Combine lexical and semantic message ranking",
+              "type": "enum",
+              "choices": [
+                "lexical",
+                "semantic",
+                "exact",
+                "hybrid"
+              ],
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "lexical",
+              "description": "Alias for --mode lexical",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "semantic",
+              "description": "Alias for --mode semantic",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "exact",
+              "description": "Alias for --mode exact. Match the whole query as one phrase",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "hybrid",
+              "description": "Alias for --mode hybrid. Combine lexical and semantic message ranking",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "since",
+              "description": "Only messages this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "after",
+              "description": "Alias for --since",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "before",
+              "description": "Only messages older than this duration or date",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": "h",
+              "long": "help",
+              "description": "Print help (see a summary with '-h')",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            }
+          ],
+          "commands": null
+        },
+        {
+          "name": "within",
+          "description": "Search within one conversation",
+          "flags": [
+            {
+              "short": null,
+              "long": "top",
+              "description": "Maximum number of results",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "budget",
+              "description": "Output budget in Unicode characters",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "no-budget",
+              "description": "Disable output budgeting",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "mode",
+              "description": "Search mode for this invocation Possible values: - lexical:  Every unquoted word must match, as a word or the start of one - semantic: Rank messages by meaning - exact:    Match the whole query as one phrase. Case-sensitive only when the query has an uppercase letter; spacing and line breaks need not match - hybrid:   Combine lexical and semantic message ranking",
+              "type": "enum",
+              "choices": [
+                "lexical",
+                "semantic",
+                "exact",
+                "hybrid"
+              ],
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "lexical",
+              "description": "Alias for --mode lexical",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "semantic",
+              "description": "Alias for --mode semantic",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "exact",
+              "description": "Alias for --mode exact. Match the whole query as one phrase",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "hybrid",
+              "description": "Alias for --mode hybrid. Combine lexical and semantic message ranking",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "since",
+              "description": "Only messages this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "after",
+              "description": "Alias for --since",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "before",
+              "description": "Only messages older than this duration or date",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": "h",
+              "long": "help",
+              "description": "Print help (see a summary with '-h')",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            }
+          ],
+          "commands": null
+        },
+        {
+          "name": "read",
+          "description": "Read transcript message ranges",
+          "flags": [
+            {
+              "short": null,
+              "long": "anchor",
+              "description": "Durable message anchor to read within one conversation",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "focus",
+              "description": "Message or range to prioritize when budgeted output is truncated",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "tail",
+              "description": "Read the last N messages of each ref or range, not counting hidden messages",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "lines",
+              "description": "Inclusive content line range within one message",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "match",
+              "description": "Find text within one message and return matching lines with context",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "context",
+              "description": "Content lines to include before and after each match [default: 3]",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "budget",
+              "description": "Output budget in Unicode characters",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "no-budget",
+              "description": "Disable output budgeting",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "tools",
+              "description": "Include tool calls",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "tool-results",
+              "description": "Include tool results",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "thinking",
+              "description": "Include thinking blocks",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "subagents",
+              "description": "Include subagent internals",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "since",
+              "description": "Only messages this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "after",
+              "description": "Alias for --since",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "before",
+              "description": "Only messages older than this duration or date",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": "h",
+              "long": "help",
+              "description": "Print help",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            }
+          ],
+          "commands": null
+        },
+        {
+          "name": "outline",
+          "description": "Outline a conversation transcript",
+          "flags": [
+            {
+              "short": null,
+              "long": "budget",
+              "description": "Output budget in Unicode characters",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "no-budget",
+              "description": "Disable output budgeting",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "tools",
+              "description": "Include tool calls",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "tool-results",
+              "description": "Include tool results",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "thinking",
+              "description": "Include thinking blocks",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "subagents",
+              "description": "Include subagent internals",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "since",
+              "description": "Only messages this recent, as a duration or date (2d, 1d6h, 6mo, 2026-07-20)",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "after",
+              "description": "Alias for --since",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": null,
+              "long": "before",
+              "description": "Only messages older than this duration or date",
+              "type": "string",
+              "choices": null,
+              "repeatable": false
+            },
+            {
+              "short": "h",
+              "long": "help",
+              "description": "Print help",
+              "type": "bool",
+              "choices": null,
+              "repeatable": false
+            }
+          ],
+          "commands": null
+        }
+      ]
+    },
+    {
+      "name": "delete-empty",
+      "description": "Delete sessions the agent never answered",
+      "flags": [
+        {
+          "short": null,
+          "long": "yes",
+          "description": "Delete matching sessions instead of printing a dry run",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        },
+        {
+          "short": null,
+          "long": "local",
+          "description": "Only inspect sessions recorded in the current repository, or, outside one, the current directory",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        },
+        {
+          "short": null,
+          "long": "all",
+          "description": "Inspect all workspaces",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        },
+        {
+          "short": "h",
+          "long": "help",
+          "description": "Print help",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        }
+      ],
+      "commands": null
+    },
+    {
+      "name": "update",
+      "description": "Update rearview to the latest version",
+      "flags": [
+        {
+          "short": "h",
+          "long": "help",
+          "description": "Print help",
+          "type": "bool",
+          "choices": null,
+          "repeatable": false
+        }
+      ],
+      "commands": null
+    }
+  ],
+  "fish_extensions": {
+    "discovered_env_vars": [
+      "COREML_CACHE_KEY",
+      "DIRECT_OVERFLOW_READ",
+      "ORT_LOAD_CONFIG_FROM_MODEL",
+      "SQLITE_TMPDIR"
+    ],
+    "binary_path": "/Users/naokiiida/Documents/4_clone/rearview.feat-fish-completion/target/debug/rearview",
+    "visited_nodes": [
+      "rearview agent read",
+      "rearview agent sessions",
+      "rearview agent outline",
+      "rearview",
+      "rearview agent within",
+      "rearview delete-empty",
+      "rearview update",
+      "rearview agent search",
+      "rearview agent"
+    ],
+    "helpers": [
+      "function __rearview_subcommand_pos -d \"Count positional arguments after a subcommand\"\n    set -l cmd (commandline -cop)\n    set -l sub $argv[1]\n    set -l flags_with_args $argv[2..-1]\n\n    set -l idx 0\n    for i in (seq (count $cmd))\n        if test \"$cmd[$i]\" = \"$sub\"\n            set idx $i\n            break\n        end\n    end\n    if test $idx -eq 0\n        return 1\n    end\n\n    set -l pos 0\n    set -l skip_next 0\n    set -l after_sub (math $idx + 1)\n    if test $after_sub -le (count $cmd)\n        for t in $cmd[$after_sub..-1]\n            if test $skip_next -eq 1\n                set skip_next 0\n                continue\n            end\n            if string match -qr \"^-\" -- \"$t\"\n                if contains -- \"$t\" $flags_with_args\n                    set skip_next 1\n                end\n                continue\n            end\n            set pos (math $pos + 1)\n        end\n    end\n    echo $pos\nend",
+      "function __rearview_sessions -d \"List recent conversations for completions\"\n    if not command -q rearview\n        return\n    end\n    set -l lines (rearview agent sessions --limit 20 2>/dev/null)\n    for line in $lines\n        set -l m (string match -r \"^session .*?uuid=([0-9a-fA-F-]+) ref=(ch_[0-9a-fA-F]+) agent=(\\w+).*? : (.*)\\$\" -- \"$line\")\n        if test (count $m) -ge 5\n            set -l uuid $m[2]\n            set -l ref $m[3]\n            set -l agent $m[4]\n            set -l summary (string trim -- $m[5])\n            if test (string length -- \"$summary\") -gt 50\n                set summary (string sub -l 47 -- \"$summary\")\"...\"\n            end\n            printf \"%s\\t[%s] %s\\n\" \"$ref\" \"$agent\" \"$summary\"\n            printf \"%s\\t[%s] %s\\n\" \"$uuid\" \"$agent\" \"$summary\"\n        end\n    end\nend",
+      "function __rearview_uuids -d \"List recent session UUIDs\"\n    if not command -q rearview\n        return\n    end\n    set -l lines (rearview agent sessions --limit 20 2>/dev/null)\n    for line in $lines\n        set -l m (string match -r \"^session .*?uuid=([0-9a-fA-F-]+) .*?agent=(\\w+).*? : (.*)\\$\" -- \"$line\")\n        if test (count $m) -ge 4\n            set -l uuid $m[2]\n            set -l agent $m[3]\n            set -l summary (string trim -- $m[4])\n            if test (string length -- \"$summary\") -gt 50\n                set summary (string sub -l 47 -- \"$summary\")\"...\"\n            end\n            printf \"%s\\t[%s] %s\\n\" \"$uuid\" \"$agent\" \"$summary\"\n        end\n    end\nend",
+      "function __rearview_complete_jsonl -d \"Complete .jsonl conversation files\"\n    set -l token (commandline -ct)\n    if test -z \"$token\"\n        for f in *.jsonl\n            test -f \"$f\"; and printf \"%s\\tJSONL conversation file\\n\" \"$f\"\n        end\n    else\n        __fish_complete_suffix .jsonl\n    end\nend"
+    ],
+    "positionals": [
+      "# Root positional: JSONL conversation file to view directly\ncomplete -c rearview -n \"__fish_use_subcommand\" -k -a \"(__rearview_complete_jsonl)\" ",
+      "# agent outline <CONVERSATION>\ncomplete -c rearview -n \"__fish_seen_subcommand_from agent; and __fish_seen_subcommand_from outline; and test (__rearview_subcommand_pos outline --budget --tools --tool-results --thinking --subagents --since --after --before) -eq 0\" -xa \"(__rearview_sessions) (__rearview_complete_jsonl)\" ",
+      "# agent within <CONVERSATION> <QUERY>\ncomplete -c rearview -n \"__fish_seen_subcommand_from agent; and __fish_seen_subcommand_from within; and test (__rearview_subcommand_pos within --top --budget --mode --since --after --before) -eq 0\" -xa \"(__rearview_sessions) (__rearview_complete_jsonl)\" ",
+      "# agent read <REFS>...\ncomplete -c rearview -n \"__fish_seen_subcommand_from agent; and __fish_seen_subcommand_from read\" -xa \"(__rearview_sessions) (__rearview_complete_jsonl)\" "
+    ],
+    "choice_descriptions": {
+      "mode": {
+        "lexical": "Match unquoted words as prefixes",
+        "semantic": "Rank messages by meaning",
+        "exact": "Match entire query as single phrase",
+        "hybrid": "Combine lexical and semantic ranking"
+      },
+      "debug": {
+        "debug": "Detailed debug information",
+        "info": "Informational messages",
+        "warn": "Warning messages",
+        "error": "Error messages only"
+      },
+      "show-dir": {
+        "claude": "Claude Code session directory",
+        "kimi": "Kimi Code session directory",
+        "grok": "Grok Build session directory",
+        "pi": "Pi session directory",
+        "omp": "Oh My Pi session directory"
+      }
+    },
+    "flag_completions": {
+      "delete": "-rxa \"(__rearview_uuids)\""
+    }
+  }
+}
