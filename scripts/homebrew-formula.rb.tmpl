@@ -33,6 +33,7 @@ class Rearview < Formula
       libexec.install Dir["*"]
       bin.write_exec_script libexec/"rearview"
     end
+    fish_completion.install "completions/rearview.fish" if File.exist?("completions/rearview.fish")
   end
 
   test do

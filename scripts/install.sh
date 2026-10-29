@@ -260,6 +260,18 @@ install_from_release() {
 
 	log_success "rearview installed to $install_dir/rearview"
 
+	# Install fish completion if present in archive
+	if [ -f completions/rearview.fish ]; then
+		local fish_comp_dir="$HOME/.config/fish/completions"
+		if command -v fish &>/dev/null || [ -d "$fish_comp_dir" ]; then
+			mkdir -p "$fish_comp_dir"
+			if [ -w "$fish_comp_dir" ]; then
+				cp completions/rearview.fish "$fish_comp_dir/rearview.fish"
+				log_info "Fish completion installed to $fish_comp_dir/rearview.fish"
+			fi
+		fi
+	fi
+
 	# Check if install_dir is in PATH
 	if [[ ":$PATH:" != *":$install_dir:"* ]]; then
 		log_warning "$install_dir is not in your PATH"

@@ -139,6 +139,8 @@ jobs:
             mkdir -p "$package/lib"
             find onnxruntime/lib -maxdepth 1 \( -type f -o -type l \) -name 'libonnxruntime*' -exec cp -P {} "$package/lib/" \;
           fi
+          mkdir -p "$package/completions"
+          cp -r completions/* "$package/completions/"
           archive="${BIN_NAME}-${{ matrix.platform }}"
           tar -C "$package" -czf "$archive.tar.gz" .
           sha256_into "$archive.tar.gz" "$archive.sha256"
@@ -153,6 +155,7 @@ jobs:
             test -f package/lib/libonnxruntime.dylib || test -f package/lib/libonnxruntime.so
             test -f "package/lib/libonnxruntime.${ORT_VERSION}.dylib" || test -f "package/lib/libonnxruntime.so.${ORT_VERSION}"
           fi
+          test -f package/completions/rearview.fish
       # The step above never loads ONNX Runtime; --version does not reach it.
       # verify-semantic-search seeds a throwaway history so the embedder is, and
       # fails if the packaged binary cannot embed. A binary that cannot open the

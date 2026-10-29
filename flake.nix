@@ -33,7 +33,10 @@
               lockFile = ./Cargo.lock;
             };
 
-            nativeBuildInputs = [ pkgs.pkg-config ];
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.installShellFiles
+            ];
 
             buildInputs =
               [
@@ -46,6 +49,10 @@
 
             ORT_LIB_PATH = "${pkgs.lib.getLib pkgs.onnxruntime}/lib";
             ORT_PREFER_DYNAMIC_LINK = "1";
+
+            postInstall = ''
+              installShellCompletion --fish completions/rearview.fish
+            '';
 
             # Some tests require filesystem access not available in Nix sandbox
             doCheck = false;
