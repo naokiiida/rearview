@@ -38,10 +38,14 @@
               pkgs.installShellFiles
             ];
 
+            # nixpkgs' cargo setup hook makes onig_sys and libsqlite3-sys link
+            # system libraries (overriding rusqlite's "bundled"), so both must
+            # be provided here.
             buildInputs =
               [
                 pkgs.onnxruntime
                 pkgs.oniguruma
+                pkgs.sqlite
               ]
               ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.apple-sdk
