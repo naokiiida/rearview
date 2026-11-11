@@ -340,21 +340,34 @@ fn try_run() -> Result<()> {
             .retain(|conversation| conversation.message_times.has_message_within(&time_filter));
         conversations.sort_by_key(|conversation| std::cmp::Reverse(conversation.timestamp));
 
-        let searchable = search::precompute_search_text(&conversations);
-        let now = chrono::Local::now();
-
         let workspace = if args.local {
             Some(history::Workspace::current()?)
         } else {
             None
         };
 
-        let debug_search = search::debug_search(&conversations, &searchable, query, now, |index| {
-            workspace
-                .as_ref()
-                .is_none_or(|workspace| workspace.contains(&conversations[index]))
+        let perf = agent::perf::SearchPerf::new();
+        let searchable = perf.time("search-data", || {
+            search::precompute_search_text(&conversations)
+        });
+        let now = chrono::Local::now();
+        let debug_search = perf.time("search", || {
+            search::debug_search(&conversations, &searchable, query, now, |index| {
+                workspace
+                    .as_ref()
+                    .is_none_or(|workspace| workspace.contains(&conversations[index]))
+            })
         });
         let results = debug_search.results;
+        let result_indices = results.iter().map(|(index, _)| *index).collect::<Vec<_>>();
+        let evidence = perf.time("evidence", || {
+            search::build_session_list_evidence(
+                &conversations,
+                &result_indices,
+                &debug_search.parsed,
+            )
+        });
+        let perf_records = perf.debug_search_records(evidence.len());
 
         eprintln!("intent: {:?}", debug_search.parsed.unquoted());
         if debug_search.parsed.literals().is_empty() {
@@ -403,6 +416,7 @@ fn try_run() -> Result<()> {
             eprintln!();
         }
 
+        eprint!("{perf_records}");
         return Ok(());
     }
 
@@ -778,7 +792,7 @@ mod agent_command_tests {
     /// A Pi id that two logs state must name both, so the user can tell which
     /// session they meant before anything is removed.
     #[test]
-    fn an_ambiguous_id_names_every_session_that_carries_it() {
+    fn ambiguous_id_names_every_session_that_carries_it() {
         let found = vec![
             (
                 history::Source::Pi,
@@ -802,7 +816,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn the_delete_report_counts_what_was_deleted_beyond_the_session() {
+    fn delete_report_counts_what_was_deleted_beyond_session() {
         let report = |stored, subagent_sessions| {
             deletion_report(
                 history::Source::Codex,
@@ -856,7 +870,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn the_summary_counts_each_agent_that_has_an_empty_session() {
+    fn summary_counts_each_agent_that_has_empty_session() {
         let candidates = [
             empty_session(history::Source::Claude),
             empty_session(history::Source::Codex),
@@ -874,7 +888,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn the_summary_names_no_agent_when_nothing_is_empty() {
+    fn summary_names_no_agent_when_nothing_is_empty() {
         assert_eq!(
             delete_empty_summary_line(false, &[]),
             "Summary: 0 empty session(s) would be deleted."
@@ -903,7 +917,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn command_refs_accept_a_session_id() {
+    fn command_refs_accept_session_id() {
         let keys = vec![key(
             "project-a",
             "12345678-1234-4234-9234-123456789abc.jsonl",
@@ -988,7 +1002,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn read_command_slices_a_large_message_around_matches() {
+    fn read_command_slices_large_message_around_matches() {
         let dir = tempfile::tempdir().unwrap();
         let path = write_jsonl(
             &dir,
@@ -1794,7 +1808,7 @@ mod agent_command_tests {
     /// m2's `Bash` call is hidden without `--tools`, and its time still ends
     /// m2's times.
     #[test]
-    fn a_message_shows_the_time_of_a_part_the_flags_hide() {
+    fn message_shows_time_of_part_flags_hide() {
         let dir = tempfile::tempdir().unwrap();
         let (keys, resolved) = resolved_test_conversation(session_with_times(&dir));
 
@@ -1814,7 +1828,7 @@ mod agent_command_tests {
     /// m2 shows its text and hides its two calls; m3 and m4 hold a result
     /// alone, and m5 is a sub-agent's reply.
     #[test]
-    fn a_read_reports_what_its_flags_hide() {
+    fn read_reports_what_its_flags_hide() {
         let dir = tempfile::tempdir().unwrap();
         let (keys, resolved) = resolved_test_conversation(session_with_times(&dir));
 
@@ -2076,7 +2090,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn read_holds_only_the_messages_inside_the_window() {
+    fn read_holds_only_messages_inside_window() {
         let session = WindowedSession::new();
 
         for (case, window, expected) in [
@@ -2102,7 +2116,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn read_with_tail_holds_the_last_messages_inside_the_window() {
+    fn read_with_tail_holds_last_messages_inside_window() {
         let session = WindowedSession::new();
 
         let unbounded = session.read_tail(2, cli::MessageTimeArgs::default());
@@ -2114,7 +2128,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn read_with_a_range_and_a_window_holds_the_messages_in_both() {
+    fn read_with_range_and_window_holds_messages_in_both() {
         let session = WindowedSession::new();
 
         let both = session.read(":m3..m4", window_bounded_by_m4_and_m5());
@@ -2127,7 +2141,7 @@ mod agent_command_tests {
     }
 
     #[test]
-    fn an_outline_spans_the_messages_inside_the_window() {
+    fn outline_spans_messages_inside_window() {
         let session = WindowedSession::new();
 
         for (case, window, expected) in [
@@ -2161,7 +2175,7 @@ mod agent_command_tests {
     /// The query `cache` matches m1 to m5; only m4 falls inside the window,
     /// from m4's time to the second before m5's.
     #[test]
-    fn search_and_within_hits_come_only_from_messages_inside_the_window() {
+    fn search_and_within_hits_come_only_from_messages_inside_window() {
         let dir = tempfile::tempdir().unwrap();
         let path = session_with_times(&dir);
         let (keys, resolved) = resolved_test_conversation(path.clone());

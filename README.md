@@ -109,8 +109,11 @@ the executable directly, so its updates do not have the browser download mark.
 If Rust and Cargo are installed:
 
 ```sh
-cargo install rearview
+cargo install --locked rearview
 ```
+
+`--locked` builds with the dependency versions rearview was tested with.
+Without it, Cargo picks the newest versions each dependency allows.
 
 On Linux this needs glibc 2.38 or newer, because of the search library it
 builds against. Ubuntu 24.04 and Debian 13 are new enough; Ubuntu 22.04 and
@@ -276,6 +279,11 @@ Semantic search finds related ideas even when the wording differs. Press
 search.
 
 The first semantic search may download a local model and build embeddings.
+This model is downloaded to the directory specified by `FASTEMBED_CACHE_DIR`,
+or absent that, to the
+[Hugging Face cache location](https://huggingface.co/docs/hub/main/en/local-cache#cache-location)
+(default `~/.cache/huggingface/hub`).
+
 Large histories take longer to prepare. Run this command in advance to build
 the semantic cache:
 
@@ -879,28 +887,9 @@ keep the existing semantic-search cache, move `~/.cache/claude-history` to
 
 ## Development
 
-Tool versions are pinned in `mise.toml` and `mise.lock`. Install them with
-[mise](https://mise.jdx.dev):
-
-```sh
-mise install
-just check
-```
-
-`just check` runs formatting checks, Clippy, tests, and a build in parallel
-through [checkle](https://github.com/raine/checkle). It does not rewrite files.
-Full logs are stored in `target/check-logs`.
-
-Run one check with `just format-check`, `just clippy`, `just test`, or
-`just build`. A Clippy warning fails the check.
-
-Run `just install-hooks` to install a pre-commit hook that formats staged Rust
-files and runs the same checks.
-
-To add or change a provider, start with
-[PROVIDERS.md](https://github.com/astral303/rearview/blob/main/PROVIDERS.md).
-To review an agent's new releases, follow
-[workflows/provider-releases.md](https://github.com/astral303/rearview/blob/main/workflows/provider-releases.md).
+[DEVELOPMENT.md](https://github.com/astral303/rearview/blob/main/DEVELOPMENT.md)
+covers setup, checks, design principles, adding a provider, and the
+conventions for contributions.
 
 ## Origin and related projects
 

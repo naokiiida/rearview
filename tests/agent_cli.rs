@@ -314,7 +314,7 @@ fn omp_subagent_transcripts_are_searchable_through_their_session() {
 
 /// Spliced sub-agent turns show only with `--show-thinking`.
 #[test]
-fn an_omp_session_file_rendered_directly_shows_its_subagent() {
+fn omp_session_file_rendered_directly_shows_its_subagent() {
     let config = tempfile::tempdir().expect("config");
     let sessions = tempfile::tempdir().expect("sessions");
     let transcript = write_omp_session_with_a_subagent(sessions.path());
@@ -337,7 +337,7 @@ fn an_omp_session_file_rendered_directly_shows_its_subagent() {
 /// list shows an OMP session once. A delete by its id has to find it once too,
 /// and delete the artifacts directory OMP keeps beside it.
 #[test]
-fn deleting_an_omp_session_in_a_shared_session_directory_removes_its_artifacts() {
+fn deleting_omp_session_in_shared_session_directory_removes_its_artifacts() {
     let config = tempfile::tempdir().expect("config");
     let sessions = tempfile::tempdir().expect("sessions");
     let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/omp");
@@ -439,7 +439,7 @@ fn codex_sessions_support_agent_search_read_and_direct_render() {
 /// Codex's legacy-to-paginated migration marks a sub-agent rollout's whole
 /// file as inherited context; the thread's text still hits through its parent.
 #[test]
-fn a_migrated_codex_subagent_thread_is_searchable_through_its_parent() {
+fn migrated_codex_subagent_thread_is_searchable_through_its_parent() {
     let config = tempfile::tempdir().expect("config");
     let codex_home = tempfile::tempdir().expect("codex home");
     let day = codex_sessions_day(codex_home.path());
@@ -463,7 +463,7 @@ fn a_migrated_codex_subagent_thread_is_searchable_through_its_parent() {
 /// A Codex sub-agent thread is a rollout of its own. Left behind, it would
 /// list as a session the user never started.
 #[test]
-fn deleting_a_codex_thread_removes_its_subagent_threads() {
+fn deleting_codex_thread_removes_its_subagent_threads() {
     let config = tempfile::tempdir().expect("config");
     let codex_home = tempfile::tempdir().expect("codex home");
     let day = codex_sessions_day(codex_home.path());
@@ -576,7 +576,7 @@ fn claude_subagent_transcripts_are_searchable_through_their_session() {
 /// The session directory holds the sub-agent transcripts, so they are
 /// deleted with the session, and the delete reports them.
 #[test]
-fn deleting_a_claude_session_removes_its_subagent_transcripts() {
+fn deleting_claude_session_removes_its_subagent_transcripts() {
     let config = tempfile::tempdir().expect("config");
     let transcript = copy_claude_subagent_fixture(config.path());
     let session_dir = transcript.with_extension("");
@@ -602,7 +602,7 @@ fn deleting_a_claude_session_removes_its_subagent_transcripts() {
 /// rollout restates the session's conversation. Reading it would index the
 /// session twice.
 #[test]
-fn a_codex_guardian_review_is_neither_listed_nor_searched() {
+fn codex_guardian_review_is_neither_listed_nor_searched() {
     let config = tempfile::tempdir().expect("config");
     let codex_home = tempfile::tempdir().expect("codex home");
     let day = codex_sessions_day(codex_home.path());
@@ -633,7 +633,7 @@ fn a_codex_guardian_review_is_neither_listed_nor_searched() {
 /// `.jsonl.zst`, which rearview ignores. The search reports it, or an agent
 /// would read a history that stops a week back as complete.
 #[test]
-fn a_codex_search_reports_the_compressed_sessions_it_ignored() {
+fn codex_search_reports_compressed_sessions_it_ignored() {
     let config = tempfile::tempdir().expect("config");
     let codex_home = tempfile::tempdir().expect("codex home");
     let day = codex_sessions_day(codex_home.path());
@@ -925,7 +925,7 @@ fn agent_sessions_lists_every_agents_sessions_and_leaves_out_excluded_projects()
 }
 
 #[test]
-fn agent_sessions_follows_the_configured_output_budget() {
+fn agent_sessions_follows_configured_output_budget() {
     let sessions = SessionsInFourAgents::new();
 
     let output = sessions.run("[agent]\noutput_chars = 400\n", &["agent", "sessions"]);
@@ -941,7 +941,7 @@ fn agent_sessions_follows_the_configured_output_budget() {
 /// Earlier releases matched the name of the folder holding a Claude Code
 /// session. That name is not a project name.
 #[test]
-fn agent_exclude_projects_doesnt_match_an_encoded_claude_folder_name() {
+fn agent_exclude_projects_doesnt_match_encoded_claude_folder_name() {
     let sessions = SessionsInFourAgents::new();
 
     let output = sessions.search("[agent]\nexclude_projects = [\"-tmp-agent-phase3-tests\"]\n");
@@ -1129,7 +1129,7 @@ fn opencode_sessions_support_agent_search_read_and_direct_render() {
 }
 
 #[test]
-fn agent_search_finds_a_session_in_an_opencode_2_database_beside_other_agents() {
+fn agent_search_finds_session_in_opencode_2_database_beside_other_agents() {
     let config = tempfile::tempdir().expect("config");
     write_transcript(
         &project(config.path()).join("12345678-1234-4234-9234-123456789abc.jsonl"),
@@ -1280,7 +1280,7 @@ fn search_reports_partial_warnings_and_preserves_compact_success_output() {
 /// search launched from one of them leaves that session out, without
 /// reporting it as skipped, unless `--include-current-session` is passed.
 #[test]
-fn search_launched_from_a_claude_session_leaves_that_session_out() {
+fn search_launched_from_claude_session_leaves_that_session_out() {
     let config = tempfile::tempdir().expect("config");
     let project = project(config.path());
     let current = "12345678-1234-4234-9234-123456789abc";
@@ -1323,7 +1323,7 @@ fn search_launched_from_a_claude_session_leaves_that_session_out() {
 }
 
 #[test]
-fn agent_sessions_launched_from_a_claude_session_leaves_that_session_out() {
+fn agent_sessions_launched_from_claude_session_leaves_that_session_out() {
     let config = tempfile::tempdir().expect("config");
     let project = project(config.path());
     let current = "12345678-1234-4234-9234-123456789abc";
@@ -1351,7 +1351,7 @@ fn agent_sessions_launched_from_a_claude_session_leaves_that_session_out() {
 }
 
 #[test]
-fn agent_sessions_follows_a_configured_local_scope_unless_all_is_passed() {
+fn agent_sessions_follows_configured_local_scope_unless_all_is_passed() {
     let home = tempfile::tempdir().expect("home");
     let config_dir = home.path().join(".config/rearview");
     std::fs::create_dir_all(&config_dir).expect("create config directory");
@@ -1401,7 +1401,7 @@ fn agent_sessions_follows_a_configured_local_scope_unless_all_is_passed() {
 /// Codex sets `CODEX_THREAD_ID` in the shells it runs, naming the rollout
 /// the shell belongs to.
 #[test]
-fn search_launched_from_a_codex_session_leaves_that_session_out() {
+fn search_launched_from_codex_session_leaves_that_session_out() {
     let config = tempfile::tempdir().expect("config");
     let codex_home = tempfile::tempdir().expect("codex home");
     let day = codex_sessions_day(codex_home.path());
@@ -1469,7 +1469,7 @@ fn search_launched_from_an_antigravity_session_leaves_that_session_out() {
 }
 
 #[test]
-fn ref_only_commands_parse_only_the_selected_transcript() {
+fn ref_only_commands_parse_only_selected_transcript() {
     let config = tempfile::tempdir().expect("config");
     let project = project(config.path());
     let selected = project.join("12345678-1234-4234-9234-123456789abc.jsonl");
@@ -1584,10 +1584,10 @@ fn agent_filesystem_failures_use_io_envelope() {
     assert!(String::from_utf8_lossy(&output.stderr).starts_with("protocol agent-error kind=io"));
 }
 
-/// The embedding cache and the model sit under `REARVIEW_CACHE_DIR` with the
-/// session caches, not under the home directory's cache.
+/// The embedding cache sits under `REARVIEW_CACHE_DIR` with the session
+/// caches; the model sits in the Hugging Face cache `HF_HUB_CACHE` names.
 #[test]
-fn the_semantic_caches_live_under_rearview_cache_dir() {
+fn debug_semantic_search_shows_embedding_cache_and_hugging_face_cache() {
     let config = tempfile::tempdir().expect("config");
     write_transcript(
         &project(config.path()).join("12345678-1234-4234-9234-123456789abc.jsonl"),
@@ -1597,34 +1597,145 @@ fn the_semantic_caches_live_under_rearview_cache_dir() {
     // The transcript gives the load a history. `--local` from a directory
     // where no session ran selects nothing, so the command prints both cache
     // paths and stops before reading the embedding cache or loading the model.
-    // Run from the home directory, which is outside any repository, the
-    // search for `.git` reads no directory of the host.
-    let output = rearview_in(config.path())
-        .current_dir(config.path())
-        .env("HOME", config.path())
-        .env("USERPROFILE", config.path())
+    let output = rearview_with_semantic_caches_in(config.path())
         .args(["--local", "--debug-semantic-search", "needle"])
         .output()
         .expect("run rearview");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(output.status.success(), "{stderr}");
-    let semantic = config.path().join("cache").join("semantic");
     assert_shows(
         &stderr,
         &format!(
             "embedding cache: {}",
-            semantic.join("embeddings-v1.bin").display()
+            semantic_cache_folder(config.path())
+                .join("embeddings-v1.bin")
+                .display()
         ),
     );
     assert_shows(
         &stderr,
-        &format!("model cache: {}", semantic.join("fastembed").display()),
+        &format!(
+            "model cache: {}",
+            hugging_face_cache(config.path()).display()
+        ),
+    );
+}
+
+/// The isolated binary with its home folder and working directory at
+/// `config`, and the Hugging Face cache at `hugging_face_cache(config)`. The
+/// search for `.git` starts at the home folder, outside any repository, and
+/// reads no folder of the host.
+fn rearview_with_semantic_caches_in(config: &Path) -> Command {
+    let mut command = rearview_in(config);
+    command
+        .current_dir(config)
+        .env("HOME", config)
+        .env("USERPROFILE", config)
+        .env_remove("FASTEMBED_CACHE_DIR")
+        .env("HF_HUB_CACHE", hugging_face_cache(config));
+    command
+}
+
+fn hugging_face_cache(config: &Path) -> PathBuf {
+    config.join("hub")
+}
+
+fn semantic_cache_folder(config: &Path) -> PathBuf {
+    config.join("cache").join("semantic")
+}
+
+/// The folder earlier releases downloaded the model into.
+fn old_cache_folder(config: &Path) -> PathBuf {
+    semantic_cache_folder(config).join("fastembed")
+}
+
+/// Places the semantic model's model folder in `folder`, containing a file of
+/// `bytes` bytes, and returns the model folder.
+fn place_semantic_model(folder: &Path, bytes: usize) -> PathBuf {
+    let model = folder.join("models--Xenova--bge-small-en-v1.5");
+    std::fs::create_dir_all(&model).expect("create model folder");
+    std::fs::write(model.join("model.onnx"), vec![0; bytes]).expect("write model file");
+    model
+}
+
+/// The output of `--clear-semantic-cache` run by
+/// `rearview_with_semantic_caches_in(config)`.
+fn clear_semantic_cache_in(config: &Path) -> String {
+    let output = rearview_with_semantic_caches_in(config)
+        .arg("--clear-semantic-cache")
+        .output()
+        .expect("run rearview");
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assert!(
+        output.status.success(),
+        "--clear-semantic-cache fails: {stderr}"
+    );
+    stderr
+}
+
+#[test]
+fn clear_semantic_cache_reports_space_freed_and_model_kept() {
+    let config = tempfile::tempdir().expect("config");
+    std::fs::create_dir_all(semantic_cache_folder(config.path())).expect("create semantic cache");
+    std::fs::write(
+        semantic_cache_folder(config.path()).join("embeddings-v1.bin"),
+        vec![0; 1_600_000],
+    )
+    .expect("write embedding cache");
+    let model = place_semantic_model(&hugging_face_cache(config.path()), 600_000);
+
+    let stderr = clear_semantic_cache_in(config.path());
+
+    assert_eq!(
+        stderr,
+        format!(
+            "Semantic cache cleared: 2 MB freed.\n\
+             Semantic model kept on disk: 1 MB in {}\n",
+            model.display()
+        ),
+        "--clear-semantic-cache output differs from the agreed text"
+    );
+    assert!(model.is_dir(), "--clear-semantic-cache deletes the model");
+}
+
+#[test]
+fn clear_semantic_cache_moves_old_download_into_hugging_face_cache() {
+    let config = tempfile::tempdir().expect("config");
+    let old_model = place_semantic_model(&old_cache_folder(config.path()), 600_000);
+    let moved_model = hugging_face_cache(config.path()).join("models--Xenova--bge-small-en-v1.5");
+
+    let stderr = clear_semantic_cache_in(config.path());
+
+    assert_eq!(
+        stderr,
+        format!(
+            "Semantic cache is already empty.\n\
+             Semantic model kept on disk: 1 MB in {}\n",
+            moved_model.display()
+        ),
+        "--clear-semantic-cache does not report the old download in the Hugging Face cache"
+    );
+    assert!(
+        moved_model.join("model.onnx").is_file() && !old_model.exists(),
+        "--clear-semantic-cache does not move the old download into the Hugging Face cache"
     );
 }
 
 #[test]
-fn search_time_range_narrows_the_corpus_without_reporting_skips() {
+fn clear_semantic_cache_reports_empty_cache_without_model() {
+    let config = tempfile::tempdir().expect("config");
+
+    let stderr = clear_semantic_cache_in(config.path());
+
+    assert_eq!(
+        stderr, "Semantic cache is already empty.\n",
+        "--clear-semantic-cache output differs from the agreed text for an empty cache without a model"
+    );
+}
+
+#[test]
+fn search_time_range_narrows_corpus_without_reporting_skips() {
     let config = tempfile::tempdir().expect("config");
     let project = project(config.path());
 
@@ -1690,7 +1801,7 @@ fn search_time_range_narrows_the_corpus_without_reporting_skips() {
 }
 
 #[test]
-fn search_rejects_an_inverted_time_range() {
+fn search_rejects_inverted_time_range() {
     let config = tempfile::tempdir().expect("config");
     let transcript = project(config.path()).join("33333333-3333-4333-9333-333333333333.jsonl");
     write_transcript(&transcript, "inverted range needle");
@@ -1719,7 +1830,7 @@ fn search_rejects_an_inverted_time_range() {
 }
 
 #[test]
-fn a_pi_session_id_file_name_or_path_resolves_where_its_handle_does() {
+fn pi_session_id_file_name_or_path_resolves_where_its_handle_does() {
     let config = tempfile::tempdir().expect("config");
     let sessions = tempfile::tempdir().expect("sessions");
     let uuid = "01912345-6789-7abc-8def-0123456789ab";
@@ -1769,7 +1880,7 @@ fn a_pi_session_id_file_name_or_path_resolves_where_its_handle_does() {
 }
 
 #[test]
-fn a_session_id_two_sessions_carry_is_ambiguous_with_handles_to_retry() {
+fn session_id_two_sessions_carry_is_ambiguous_with_handles_to_retry() {
     let config = tempfile::tempdir().expect("config");
     let uuid = "12345678-1234-4234-9234-123456789abc";
     for name in ["-tmp-first", "-tmp-second"] {
@@ -1801,7 +1912,7 @@ fn a_session_id_two_sessions_carry_is_ambiguous_with_handles_to_retry() {
 }
 
 #[test]
-fn a_session_id_focus_keeps_what_a_handle_focus_keeps_across_conversations() {
+fn session_id_focus_keeps_what_handle_focus_keeps_across_conversations() {
     let config = tempfile::tempdir().expect("config");
     let dir = project(config.path());
     let first = "12345678-1234-4234-9234-123456789abc";
@@ -1835,7 +1946,7 @@ fn a_session_id_focus_keeps_what_a_handle_focus_keeps_across_conversations() {
 }
 
 #[test]
-fn quoted_text_across_the_records_of_a_split_reply_doesnt_match() {
+fn quoted_text_across_records_of_split_reply_doesnt_match() {
     let config = tempfile::tempdir().expect("config");
     let transcript = project(config.path()).join("12345678-1234-4234-9234-123456789abd.jsonl");
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();

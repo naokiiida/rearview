@@ -691,7 +691,7 @@ fn discovery_names_each_sessions_sub_agent_transcripts() {
 /// `--render` and `rearview <file>` read sub-agents through
 /// `subagent_transcripts`, not through discovery.
 #[test]
-fn subagent_transcripts_returns_each_sub_agent_of_the_session() {
+fn subagent_transcripts_returns_each_sub_agent_of_session() {
     run_contract(Contract::SubagentTranscripts, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let family = SessionFamily::write(fixture, home.path());
@@ -708,7 +708,7 @@ fn subagent_transcripts_returns_each_sub_agent_of_the_session() {
 /// A sub-agent session left behind would list as a session the user never
 /// started, under an id they never saw.
 #[test]
-fn delete_removes_every_sub_agent_session_with_the_session() {
+fn delete_removes_every_sub_agent_session_with_session() {
     run_contract(Contract::SubagentDelete, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let family = SessionFamily::write(fixture, home.path());
@@ -734,7 +734,7 @@ fn delete_removes_every_sub_agent_session_with_the_session() {
 /// The delete report names the sub-agent sessions a delete removed beside
 /// the one the user named.
 #[test]
-fn delete_counts_the_sub_agent_sessions_it_removes() {
+fn delete_counts_sub_agent_sessions_it_removes() {
     run_contract(Contract::SubagentDeleteCount, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let family = SessionFamily::write(fixture, home.path());
@@ -750,7 +750,7 @@ fn delete_counts_the_sub_agent_sessions_it_removes() {
 /// Pi's does, the fixture copies the walk, and this contract does not run the
 /// provider's discovery.
 #[test]
-fn a_provider_declaring_subagents_not_capable_doesnt_report_a_sub_agent() {
+fn provider_declaring_subagents_not_capable_doesnt_report_sub_agent() {
     run_contract(Contract::SubagentsNotCapable, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let ids = fixture.ids();
@@ -780,7 +780,7 @@ fn a_provider_declaring_subagents_not_capable_doesnt_report_a_sub_agent() {
 /// sidecar or index, still reaches the next load: a warm load would
 /// otherwise restore the old name from the cache indefinitely.
 #[test]
-fn a_rename_reaches_the_next_load_through_a_warm_cache() {
+fn rename_reaches_next_load_through_warm_cache() {
     run_contract(Contract::WarmCacheRename, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
@@ -804,7 +804,7 @@ fn a_rename_reaches_the_next_load_through_a_warm_cache() {
 }
 
 #[test]
-fn a_session_id_resolves_to_its_session_with_its_sub_agents() {
+fn session_id_resolves_to_its_session_with_its_sub_agents() {
     run_contract(Contract::SessionIdLookup, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let family = SessionFamily::write(fixture, home.path());
@@ -824,7 +824,7 @@ fn a_session_id_resolves_to_its_session_with_its_sub_agents() {
 
 /// The stub matches discovery's, fingerprint included.
 #[test]
-fn a_session_id_resolves_to_the_stub_discovery_lists() {
+fn session_id_resolves_to_stub_discovery_lists() {
     run_contract(Contract::SessionIdLookupMatchesDiscovery, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let family = SessionFamily::write(fixture, home.path());
@@ -846,7 +846,7 @@ fn a_session_id_resolves_to_the_stub_discovery_lists() {
 /// Asserts the shape first: the miss must come from the lookup, not from
 /// rejecting the query as text.
 #[test]
-fn an_id_the_provider_never_recorded_resolves_to_nothing() {
+fn id_provider_never_recorded_resolves_to_nothing() {
     run_contract(Contract::UnknownIdLookup, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let ids = fixture.ids();
@@ -867,7 +867,7 @@ fn an_id_the_provider_never_recorded_resolves_to_nothing() {
 /// A paste in another case names the same session when the agent writes
 /// hex UUIDs, and another session when its ids are case-sensitive.
 #[test]
-fn an_id_in_another_case_resolves_by_the_agents_case_rule() {
+fn id_in_another_case_resolves_by_agents_case_rule() {
     run_contract(Contract::IdCaseRule, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let ids = fixture.ids();
@@ -892,8 +892,7 @@ fn an_id_in_another_case_resolves_by_the_agents_case_rule() {
 /// Searches by the id the list shows, not the name the fixture writes the
 /// session under: a transcript can state an id of its own.
 #[test]
-fn a_provider_declaring_session_id_lookup_not_capable_finds_sessions_by_id_only_through_its_search()
-{
+fn provider_declaring_session_id_lookup_not_capable_finds_sessions_by_id_only_through_its_search() {
     run_contract(Contract::SessionIdLookupNotCapable, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
@@ -919,7 +918,7 @@ fn a_provider_declaring_session_id_lookup_not_capable_finds_sessions_by_id_only_
 /// The one exception to every filter the list applies: a sub-agent's id
 /// opens it as a session of its own, with the sub-agents beneath it.
 #[test]
-fn a_sub_agent_id_resolves_to_a_stub_of_its_own() {
+fn sub_agent_id_resolves_to_stub_of_its_own() {
     run_contract(Contract::SubagentIdLookup, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let ids = fixture.ids();
@@ -939,7 +938,7 @@ fn a_sub_agent_id_resolves_to_a_stub_of_its_own() {
 /// sub-agent: the miss must be a refusal, not a sub-agent the fixture failed
 /// to write.
 #[test]
-fn a_provider_declaring_subagent_by_id_not_capable_doesnt_resolve_a_sub_agent_id() {
+fn provider_declaring_subagent_by_id_not_capable_doesnt_resolve_sub_agent_id() {
     run_contract(Contract::SubagentByIdNotCapable, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let ids = fixture.ids();
@@ -965,7 +964,7 @@ fn a_provider_declaring_subagent_by_id_not_capable_doesnt_resolve_a_sub_agent_id
 
 /// Text typed into the search box resolves to no session.
 #[test]
-fn a_query_without_the_id_shape_resolves_to_nothing() {
+fn query_without_id_shape_resolves_to_nothing() {
     run_contract(Contract::QueryWithoutIdShape, |fixture| {
         let resolver = fixture.session_id_resolver();
         assert!(!resolver.is_session_id_shape("deployment"));
@@ -990,7 +989,7 @@ fn actions_menu_offers_fork(fixture: &dyn ProviderFixture) -> bool {
 /// The actions menu offers Fork, and the fork starts the agent on the session
 /// the user picked.
 #[test]
-fn a_fork_command_starts_the_agent_on_the_session() {
+fn fork_command_starts_agent_on_session() {
     run_contract(Contract::ForkCommand, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let recorded_project = tempfile::tempdir().unwrap();
@@ -1021,7 +1020,7 @@ fn a_fork_command_starts_the_agent_on_the_session() {
 /// The actions menu does not offer Fork, and `--fork-session` refuses with
 /// the agent's name and builds no command.
 #[test]
-fn a_provider_declaring_fork_not_capable_refuses_fork_session() {
+fn provider_declaring_fork_not_capable_refuses_fork_session() {
     run_contract(Contract::ForkNotCapable, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let session = fixture.write_session(home.path(), fixture.ids().session);
@@ -1053,7 +1052,7 @@ fn a_provider_declaring_fork_not_capable_refuses_fork_session() {
 /// working directory's sessions to: the one directory under the root that
 /// holds them, named as the fixture names it by hand.
 #[test]
-fn a_working_directory_maps_to_the_directory_holding_its_sessions() {
+fn working_directory_maps_to_directory_holding_its_sessions() {
     run_contract(Contract::WorkspaceSessionsDir, |fixture| {
         let home = tempfile::tempdir().unwrap();
         let session = fixture.write_session(home.path(), fixture.ids().session);
@@ -1088,7 +1087,7 @@ fn a_working_directory_maps_to_the_directory_holding_its_sessions() {
 /// The roots sit under the agent's home, an override replaces them, and an
 /// empty override means unset.
 #[test]
-fn the_sessions_root_is_the_agents_home_or_its_override() {
+fn sessions_root_is_agents_home_or_its_override() {
     run_contract(Contract::RootOverride, |fixture| {
         // A temporary directory is absolute on Windows too, where `/opt/agent`
         // is not.
@@ -1123,7 +1122,7 @@ fn the_sessions_root_is_the_agents_home_or_its_override() {
 /// Root resolution reads exactly the variables the provider lists, and with
 /// each of them pointing into one directory, every root lies inside it.
 #[test]
-fn the_listed_environment_variables_decide_every_root() {
+fn listed_environment_variables_decide_every_root() {
     run_contract(Contract::StorageEnvVars, |fixture| {
         let provider = fixture.provider();
         let listed: BTreeSet<&str> = provider.storage_env_vars().iter().copied().collect();
@@ -1166,7 +1165,7 @@ fn the_listed_environment_variables_decide_every_root() {
 /// A delete aimed at another agent's transcript, named as this agent names
 /// its own, removes nothing.
 #[test]
-fn a_file_the_provider_does_not_own_survives_its_delete() {
+fn file_provider_does_not_own_survives_its_delete() {
     run_contract(Contract::ForeignFileDelete, |fixture| {
         let directory = tempfile::tempdir().unwrap();
         let foreign = fixture.foreign_transcript(directory.path());
